@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mangalam Labour Command Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --maroon:#8E1B1B; --maroon-dark:#6e1414; --gold:#C28D2C;
+    --bg:#FAF7F2; --card:#FFFFFF; --ink:#2A2320; --muted:#8a7d73; --border:#E9E1D6;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'DM Sans',sans-serif;min-height:100vh;}
+  h1,h2,h3{font-family:'Cormorant Garamond',serif;margin:0;}
+  .topbar{background:linear-gradient(120deg,var(--maroon),var(--maroon-dark));color:#fff;padding:26px 30px;}
+  .topbar h1{font-size:30px;font-weight:700;letter-spacing:.3px;}
+  .topbar .sub{font-size:13px;color:#e9cfcf;margin-top:6px;}
+  .wrap{max-width:1000px;margin:0 auto;padding:44px 28px;}
+  .intro{font-size:14px;color:var(--muted);margin-bottom:32px;max-width:640px;}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;}
+  .portal-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:28px 24px;text-decoration:none;color:var(--ink);display:block;box-shadow:0 1px 3px rgba(0,0,0,.03);transition:transform .15s, box-shadow .15s;position:relative;overflow:hidden;}
+  .portal-card:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(0,0,0,.08);}
+  .portal-card .stripe{position:absolute;top:0;left:0;right:0;height:5px;}
+  .stripe-pm{background:var(--maroon);}
+  .stripe-cbd{background:var(--gold);}
+  .stripe-ceo{background:linear-gradient(90deg,var(--maroon),var(--gold));}
+  .portal-card .tag{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:700;margin-bottom:10px;display:block;}
+  .portal-card h2{font-size:24px;font-weight:700;margin-bottom:10px;}
+  .portal-card p{font-size:13px;color:var(--muted);line-height:1.5;margin:0 0 18px 0;}
+  .portal-card .go{font-size:12px;font-weight:700;color:var(--maroon);display:flex;align-items:center;gap:6px;}
+  .footer-note{margin-top:36px;font-size:12px;color:var(--muted);border-top:1px solid var(--border);padding-top:18px;}
+  @media(max-width:800px){.grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Mangalam Labour Command Center</h1>
+  <div class="sub">Mangalam Landmarks LLP — site manpower requirement, supply &amp; intelligence</div>
+</div>
+
+<div class="wrap">
+  <p class="intro">Choose your portal below. Each one has its own login — Project Managers raise labour requirements, the CBD team logs the manpower arranged against them, and leadership gets a live intelligence view across every site.</p>
+
+  <div class="grid">
+    <a class="portal-card" href="pm-portal.html">
+      <div class="stripe stripe-pm"></div>
+      <span class="tag">Project Manager</span>
+      <h2>PM Portal</h2>
+      <p>Raise labour requirements by count and trade type. Cross-verify actual on-site headcount against what CBD has supplied.</p>
+      <div class="go">Open PM Portal →</div>
+    </a>
+
+    <a class="portal-card" href="cbd-portal.html">
+      <div class="stripe stripe-cbd"></div>
+      <span class="tag">CBD Team</span>
+      <h2>CBD Portal</h2>
+      <p>View open requirements across sites and log the labour arranged — by trade and contractor/vendor. Multiple contractors can supply one requirement.</p>
+      <div class="go">Open CBD Portal →</div>
+    </a>
+
+    <a class="portal-card" href="ceo-dashboard.html">
+      <div class="stripe stripe-ceo"></div>
+      <span class="tag">Leadership</span>
+      <h2>CEO Dashboard</h2>
+      <p>Contractor ratings, demand-supply gap by project and trade, requirement-vs-supply trends, and verification mismatch flags.</p>
+      <div class="go">Open CEO Dashboard →</div>
+    </a>
+  </div>
+
+  <div class="footer-note">
+    Each portal requires its own User ID and password — access is role-restricted server-side, so a PM login cannot view CBD or CEO data even by opening the wrong page. Deploy all four HTML files (this one plus the three portals) to the same folder/host so the links above resolve correctly.
+  </div>
+</div>
+
+</body>
+</html>

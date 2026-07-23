@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mangalam PM Portal — Labour Requirement</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --maroon:#8E1B1B; --maroon-dark:#6e1414; --gold:#C28D2C;
+    --bg:#FAF7F2; --card:#FFFFFF; --ink:#2A2320; --muted:#8a7d73; --border:#E9E1D6;
+    --ok:#2E7D32; --warn:#C28D2C; --bad:#B23B2E;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'DM Sans',sans-serif;}
+  h1,h2,h3{font-family:'Cormorant Garamond',serif;margin:0;}
+  .topbar{background:linear-gradient(120deg,var(--maroon),var(--maroon-dark));color:#fff;padding:18px 28px;display:flex;justify-content:space-between;align-items:center;}
+  .topbar h1{font-size:26px;font-weight:700;letter-spacing:.3px;}
+  .topbar .sub{font-size:12px;color:#e9cfcf;font-weight:400;font-family:'DM Sans',sans-serif;}
+  .topbar button{background:transparent;border:1px solid rgba(255,255,255,.5);color:#fff;padding:7px 14px;border-radius:6px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+  .wrap{max-width:1000px;margin:0 auto;padding:28px;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:22px;margin-bottom:22px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
+  label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px;}
+  input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;background:#fffefd;margin-bottom:14px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+  .btn{background:var(--maroon);color:#fff;border:none;padding:11px 20px;border-radius:8px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;}
+  .btn:hover{background:var(--maroon-dark);}
+  .btn-gold{background:var(--gold);}
+  table{width:100%;border-collapse:collapse;margin-top:6px;}
+  th{text-align:left;font-size:11px;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--border);padding:8px 6px;}
+  td{padding:10px 6px;border-bottom:1px solid var(--border);font-size:13.5px;}
+  .badge{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;}
+  .badge-open{background:#fdeaea;color:var(--bad);}
+  .badge-partial{background:#fdf3e3;color:var(--warn);}
+  .badge-full{background:#e6f4e6;color:var(--ok);}
+  .gap-neg{color:var(--ok);font-weight:700;}
+  .gap-pos{color:var(--bad);font-weight:700;}
+  #loginScreen{max-width:380px;margin:80px auto;}
+  .msg{font-size:13px;padding:10px;border-radius:8px;margin-bottom:14px;}
+  .msg-err{background:#fdeaea;color:var(--bad);}
+  .msg-ok{background:#e6f4e6;color:var(--ok);}
+  .hidden{display:none;}
+  .small{font-size:12px;color:var(--muted);}
+  .verify-row td{vertical-align:top;}
+  .inline-form{display:flex;gap:8px;align-items:flex-end;}
+  .inline-form input{margin-bottom:0;}
+</style>
+</head>
+<body>
+
+<div id="loginScreen" class="card">
+  <h2 style="margin-bottom:4px;">PM Portal</h2>
+  <p class="small" style="margin-bottom:18px;">Mangalam Landmarks — Labour Command Center</p>
+  <div id="loginMsg"></div>
+  <label>User ID</label>
+  <input id="loginUser" placeholder="e.g. pm1">
+  <label>Password</label>
+  <input id="loginPass" type="password">
+  <button class="btn" style="width:100%" onclick="doLogin()">Log In</button>
+</div>
+
+<div id="app" class="hidden">
+  <div class="topbar">
+    <div>
+      <h1>PM Portal</h1>
+      <div class="sub" id="whoami"></div>
+    </div>
+    <button onclick="doLogout()">Log out</button>
+  </div>
+
+  <div class="wrap">
+    <div class="card">
+      <h3 style="margin-bottom:14px;">Raise Labour Requirement</h3>
+      <div class="grid3">
+        <div>
+          <label>Date</label>
+          <input type="date" id="reqDate">
+        </div>
+        <div>
+          <label>Building / Wing</label>
+          <input id="reqBuilding" placeholder="e.g. A/B">
+        </div>
+        <div>
+          <label>Activity</label>
+          <input id="reqActivity" placeholder="e.g. RCC, Plaster, Blockwork">
+        </div>
+      </div>
+      <div class="grid2">
+        <div>
+          <label>Trade / Skill Type</label>
+          <select id="reqTrade">
+            <option>Mason</option><option>Carpenter</option><option>Fitter</option>
+            <option>Electrician</option><option>Plumber</option><option>Painter</option>
+            <option>Fabricator</option><option>Bar Bender</option><option>Helper</option>
+            <option>Unskilled</option><option>Other</option>
+          </select>
+        </div>
+        <div>
+          <label>Number of Labour Required</label>
+          <input type="number" min="1" id="reqCount">
+        </div>
+      </div>
+      <p class="small" style="margin-bottom:12px;">You only specify count + type. CBD will assign the contractor(s) who supply against this.</p>
+      <button class="btn" onclick="submitRequirement()">Submit Requirement</button>
+      <div id="reqMsg" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:14px;">My Requirements &amp; Supply Status</h3>
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Activity / Trade</th><th>Required</th><th>Supplied</th><th>Gap</th><th>Contractors</th><th>Status</th><th>Verify</th></tr>
+        </thead>
+        <tbody id="reqTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
+let TOKEN = localStorage.getItem('mlc_pm_token') || '';
+let USER = null;
+
+async function api(action, payload) {
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(Object.assign({ action, token: TOKEN }, payload || {}))
+  });
+  return res.json();
+}
+
+async function doLogin() {
+  const userId = document.getElementById('loginUser').value.trim();
+  const password = document.getElementById('loginPass').value;
+  const r = await api('login', { userId, password });
+  const msgEl = document.getElementById('loginMsg');
+  if (!r.ok) { msgEl.innerHTML = '<div class="msg msg-err">' + r.error + '</div>'; return; }
+  if (r.user.role !== 'PM') { msgEl.innerHTML = '<div class="msg msg-err">This login is not a PM account.</div>'; return; }
+  TOKEN = r.token; USER = r.user;
+  localStorage.setItem('mlc_pm_token', TOKEN);
+  enterApp();
+}
+
+async function tryResume() {
+  if (!TOKEN) return;
+  const r = await api('validateSession', {});
+  if (r.ok && r.user.role === 'PM') { USER = r.user; enterApp(); }
+  else { TOKEN = ''; localStorage.removeItem('mlc_pm_token'); }
+}
+
+function enterApp() {
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('whoami').textContent = USER.fullName + ' · ' + USER.projects;
+  document.getElementById('reqDate').valueAsDate = new Date();
+  loadRequirements();
+}
+
+function doLogout() {
+  api('logout', {});
+  TOKEN = ''; localStorage.removeItem('mlc_pm_token');
+  location.reload();
+}
+
+async function submitRequirement() {
+  const payload = {
+    date: document.getElementById('reqDate').value,
+    building: document.getElementById('reqBuilding').value,
+    activity: document.getElementById('reqActivity').value,
+    trade: document.getElementById('reqTrade').value,
+    requiredCount: document.getElementById('reqCount').value
+  };
+  if (!payload.requiredCount || Number(payload.requiredCount) <= 0) {
+    document.getElementById('reqMsg').innerHTML = '<div class="msg msg-err">Enter a valid labour count.</div>';
+    return;
+  }
+  const r = await api('createRequirement', payload);
+  const el = document.getElementById('reqMsg');
+  if (r.ok) {
+    el.innerHTML = '<div class="msg msg-ok">Requirement submitted.</div>';
+    document.getElementById('reqBuilding').value = '';
+    document.getElementById('reqActivity').value = '';
+    document.getElementById('reqCount').value = '';
+    loadRequirements();
+  } else {
+    el.innerHTML = '<div class="msg msg-err">' + r.error + '</div>';
+  }
+}
+
+async function loadRequirements() {
+  const r = await api('getMyRequirements', {});
+  if (!r.ok) return;
+  const body = document.getElementById('reqTableBody');
+  body.innerHTML = '';
+  r.requirements.sort((a,b)=> new Date(b.Timestamp) - new Date(a.Timestamp)).forEach(req => {
+    const statusClass = req.Status === 'Fulfilled' ? 'badge-full' : (req.Status === 'Partially Fulfilled' ? 'badge-partial' : 'badge-open');
+    const gapClass = req.gap > 0 ? 'gap-pos' : 'gap-neg';
+    const tr = document.createElement('tr');
+    tr.className = 'verify-row';
+    tr.innerHTML = `
+      <td>${req.Date}</td>
+      <td>${req.Activity || '-'} / ${req.Trade}</td>
+      <td>${req.RequiredCount}</td>
+      <td>${req.totalSupplied}</td>
+      <td class="${gapClass}">${req.gap > 0 ? '+' + req.gap : req.gap}</td>
+      <td class="small">${req.contractors.length ? req.contractors.join(', ') : '—'}</td>
+      <td><span class="badge ${statusClass}">${req.Status}</span></td>
+      <td>
+        <div class="inline-form">
+          <input type="number" min="0" placeholder="On-site count" id="verify-${req.ReqID}" style="width:110px;">
+          <button class="btn btn-gold" style="padding:8px 12px;font-size:12px;" onclick="verify('${req.ReqID}')">Verify</button>
+        </div>
+        ${req.lastVerification ? `<div class="small" style="margin-top:4px;">Last: ${req.lastVerification.ActualOnSite} on site (${req.lastVerification.Date}) — variance ${req.lastVerification.Variance}</div>` : ''}
+      </td>
+    `;
+    body.appendChild(tr);
+  });
+}
+
+async function verify(reqId) {
+  const val = document.getElementById('verify-' + reqId).value;
+  if (val === '') return;
+  const r = await api('submitVerification', { reqId, actualOnSite: val, date: new Date().toISOString().slice(0,10) });
+  if (r.ok) loadRequirements();
+  else alert(r.error);
+}
+
+tryResume();
+</script>
+</body>
+</html>

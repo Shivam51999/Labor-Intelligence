@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mangalam CBD Portal — Labour Supply</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --maroon:#8E1B1B; --maroon-dark:#6e1414; --gold:#C28D2C;
+    --bg:#FAF7F2; --card:#FFFFFF; --ink:#2A2320; --muted:#8a7d73; --border:#E9E1D6;
+    --ok:#2E7D32; --warn:#C28D2C; --bad:#B23B2E;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'DM Sans',sans-serif;}
+  h1,h2,h3{font-family:'Cormorant Garamond',serif;margin:0;}
+  .topbar{background:linear-gradient(120deg,var(--gold),#a9791f);color:#fff;padding:18px 28px;display:flex;justify-content:space-between;align-items:center;}
+  .topbar h1{font-size:26px;font-weight:700;letter-spacing:.3px;}
+  .topbar .sub{font-size:12px;color:#fbe9c8;font-weight:400;font-family:'DM Sans',sans-serif;}
+  .topbar button{background:transparent;border:1px solid rgba(255,255,255,.6);color:#fff;padding:7px 14px;border-radius:6px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+  .wrap{max-width:1050px;margin:0 auto;padding:28px;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:22px;margin-bottom:22px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
+  label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:5px;}
+  input,select{width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:13.5px;background:#fffefd;}
+  .btn{background:var(--maroon);color:#fff;border:none;padding:9px 16px;border-radius:8px;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;}
+  .btn:hover{background:var(--maroon-dark);}
+  table{width:100%;border-collapse:collapse;margin-top:6px;}
+  th{text-align:left;font-size:11px;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--border);padding:8px 6px;}
+  td{padding:10px 6px;border-bottom:1px solid var(--border);font-size:13.5px;vertical-align:top;}
+  .badge{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;}
+  .badge-open{background:#fdeaea;color:var(--bad);}
+  .badge-partial{background:#fdf3e3;color:var(--warn);}
+  #loginScreen{max-width:380px;margin:80px auto;}
+  .msg{font-size:13px;padding:10px;border-radius:8px;margin-bottom:14px;}
+  .msg-err{background:#fdeaea;color:var(--bad);}
+  .msg-ok{background:#e6f4e6;color:var(--ok);}
+  .hidden{display:none;}
+  .small{font-size:12px;color:var(--muted);}
+  .supply-form{display:grid;grid-template-columns:1fr 1fr 90px 90px;gap:6px;align-items:end;}
+  .supply-form label{margin-bottom:3px;}
+  .existing-supply{font-size:12px;color:var(--muted);margin-top:6px;}
+  .gap-tag{font-weight:700;color:var(--bad);}
+</style>
+</head>
+<body>
+
+<div id="loginScreen" class="card">
+  <h2 style="margin-bottom:4px;">CBD Portal</h2>
+  <p class="small" style="margin-bottom:18px;">Mangalam Landmarks — Labour Command Center</p>
+  <div id="loginMsg"></div>
+  <label>User ID</label>
+  <input id="loginUser" placeholder="e.g. cbd1">
+  <label>Password</label>
+  <input id="loginPass" type="password">
+  <button class="btn" style="width:100%" onclick="doLogin()">Log In</button>
+</div>
+
+<div id="app" class="hidden">
+  <div class="topbar">
+    <div>
+      <h1>CBD Portal</h1>
+      <div class="sub" id="whoami"></div>
+    </div>
+    <button onclick="doLogout()">Log out</button>
+  </div>
+
+  <div class="wrap">
+    <div class="card">
+      <h3 style="margin-bottom:6px;">Open Labour Requirements</h3>
+      <p class="small" style="margin-bottom:16px;">Log the labour you have arranged against each requirement. Multiple contractors can supply against the same line — add each one as a separate entry.</p>
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Project</th><th>Activity / Trade</th><th>Required</th><th>Supplied so far</th><th>Gap</th><th>Add Supply</th></tr>
+        </thead>
+        <tbody id="reqTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
+let TOKEN = localStorage.getItem('mlc_cbd_token') || '';
+let USER = null;
+
+async function api(action, payload) {
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(Object.assign({ action, token: TOKEN }, payload || {}))
+  });
+  return res.json();
+}
+
+async function doLogin() {
+  const userId = document.getElementById('loginUser').value.trim();
+  const password = document.getElementById('loginPass').value;
+  const r = await api('login', { userId, password });
+  const msgEl = document.getElementById('loginMsg');
+  if (!r.ok) { msgEl.innerHTML = '<div class="msg msg-err">' + r.error + '</div>'; return; }
+  if (r.user.role !== 'CBD') { msgEl.innerHTML = '<div class="msg msg-err">This login is not a CBD account.</div>'; return; }
+  TOKEN = r.token; USER = r.user;
+  localStorage.setItem('mlc_cbd_token', TOKEN);
+  enterApp();
+}
+
+async function tryResume() {
+  if (!TOKEN) return;
+  const r = await api('validateSession', {});
+  if (r.ok && r.user.role === 'CBD') { USER = r.user; enterApp(); }
+  else { TOKEN = ''; localStorage.removeItem('mlc_cbd_token'); }
+}
+
+function enterApp() {
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('whoami').textContent = USER.fullName + ' · Scope: ' + USER.projects;
+  loadRequirements();
+}
+
+function doLogout() {
+  api('logout', {});
+  TOKEN = ''; localStorage.removeItem('mlc_cbd_token');
+  location.reload();
+}
+
+async function loadRequirements() {
+  const r = await api('getOpenRequirements', {});
+  if (!r.ok) { alert(r.error); return; }
+  const body = document.getElementById('reqTableBody');
+  body.innerHTML = '';
+  r.requirements.sort((a,b)=> new Date(b.Timestamp) - new Date(a.Timestamp)).forEach(req => {
+    const tr = document.createElement('tr');
+    const existingList = req.supplyLines.map(s => `${s.Contractor}: ${s.Count} ${s.Trade}`).join(' · ');
+    tr.innerHTML = `
+      <td>${req.Date}</td>
+      <td>${req.Project}</td>
+      <td>${req.Activity || '-'} / ${req.Trade}</td>
+      <td>${req.RequiredCount}</td>
+      <td>${req.totalSupplied}</td>
+      <td class="gap-tag">${req.gap}</td>
+      <td>
+        <div class="supply-form">
+          <div><label>Contractor</label><input id="c-${req.ReqID}" placeholder="Vendor name"></div>
+          <div><label>Trade</label>
+            <select id="t-${req.ReqID}">
+              <option${req.Trade==='Mason'?' selected':''}>Mason</option>
+              <option${req.Trade==='Carpenter'?' selected':''}>Carpenter</option>
+              <option${req.Trade==='Fitter'?' selected':''}>Fitter</option>
+              <option${req.Trade==='Electrician'?' selected':''}>Electrician</option>
+              <option${req.Trade==='Plumber'?' selected':''}>Plumber</option>
+              <option${req.Trade==='Painter'?' selected':''}>Painter</option>
+              <option${req.Trade==='Fabricator'?' selected':''}>Fabricator</option>
+              <option${req.Trade==='Bar Bender'?' selected':''}>Bar Bender</option>
+              <option${req.Trade==='Helper'?' selected':''}>Helper</option>
+              <option${req.Trade==='Unskilled'?' selected':''}>Unskilled</option>
+              <option${req.Trade==='Other'?' selected':''}>Other</option>
+            </select>
+          </div>
+          <div><label>Count</label><input type="number" min="1" id="n-${req.ReqID}"></div>
+          <button class="btn" onclick="addSupply('${req.ReqID}')">Add</button>
+        </div>
+        ${existingList ? `<div class="existing-supply">Logged: ${existingList}</div>` : ''}
+      </td>
+    `;
+    body.appendChild(tr);
+  });
+}
+
+async function addSupply(reqId) {
+  const contractor = document.getElementById('c-' + reqId).value.trim();
+  const trade = document.getElementById('t-' + reqId).value;
+  const count = document.getElementById('n-' + reqId).value;
+  if (!contractor || !count || Number(count) <= 0) { alert('Enter contractor name and a valid count.'); return; }
+  const r = await api('logSupply', { reqId, contractor, trade, count });
+  if (r.ok) loadRequirements();
+  else alert(r.error);
+}
+
+tryResume();
+</script>
+</body>
+</html>

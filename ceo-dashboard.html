@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mangalam Labour Command Center — CEO Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root{
+    --maroon:#8E1B1B; --maroon-dark:#6e1414; --gold:#C28D2C;
+    --bg:#FAF7F2; --card:#FFFFFF; --ink:#2A2320; --muted:#8a7d73; --border:#E9E1D6;
+    --ok:#2E7D32; --warn:#C28D2C; --bad:#B23B2E;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'DM Sans',sans-serif;}
+  h1,h2,h3{font-family:'Cormorant Garamond',serif;margin:0;}
+  .topbar{background:linear-gradient(120deg,var(--maroon),var(--maroon-dark));color:#fff;padding:20px 30px;display:flex;justify-content:space-between;align-items:center;}
+  .topbar h1{font-size:28px;font-weight:700;}
+  .topbar .sub{font-size:12px;color:#e9cfcf;font-family:'DM Sans',sans-serif;}
+  .topbar button{background:transparent;border:1px solid rgba(255,255,255,.5);color:#fff;padding:7px 14px;border-radius:6px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+  .wrap{max-width:1280px;margin:0 auto;padding:28px;}
+  .cards{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:24px;}
+  .stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;}
+  .stat .label{font-size:11px;text-transform:uppercase;color:var(--muted);font-weight:700;letter-spacing:.4px;}
+  .stat .value{font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:700;margin-top:6px;}
+  .stat .value.bad{color:var(--bad);}
+  .stat .value.ok{color:var(--ok);}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:22px;margin-bottom:22px;box-shadow:0 1px 3px rgba(0,0,0,.03);}
+  .card h3{font-size:19px;margin-bottom:14px;}
+  table{width:100%;border-collapse:collapse;}
+  th{text-align:left;font-size:11px;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--border);padding:8px 6px;}
+  td{padding:9px 6px;border-bottom:1px solid var(--border);font-size:13.5px;}
+  .badge{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;}
+  .badge-crit{background:#fdeaea;color:var(--bad);}
+  .badge-mod{background:#fdf3e3;color:var(--warn);}
+  .badge-good{background:#e6f4e6;color:var(--ok);}
+  .rating-bar-bg{background:#eee2d3;border-radius:8px;height:8px;width:100%;overflow:hidden;}
+  .rating-bar{height:100%;border-radius:8px;}
+  #loginScreen{max-width:380px;margin:80px auto;}
+  .msg{font-size:13px;padding:10px;border-radius:8px;margin-bottom:14px;}
+  .msg-err{background:#fdeaea;color:var(--bad);}
+  .hidden{display:none;}
+  .small{font-size:12px;color:var(--muted);}
+  input,.btn{font-family:'DM Sans',sans-serif;}
+  input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:14px;}
+  label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:5px;}
+  .btn{background:var(--maroon);color:#fff;border:none;padding:11px 20px;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px;width:100%;}
+  canvas{max-height:280px;}
+  .flag-item{border-left:3px solid var(--bad);padding:8px 12px;margin-bottom:8px;background:#fdf6f6;border-radius:0 8px 8px 0;font-size:13px;}
+</style>
+</head>
+<body>
+
+<div id="loginScreen" class="card">
+  <h2 style="margin-bottom:4px;">CEO Dashboard</h2>
+  <p class="small" style="margin-bottom:18px;">Mangalam Landmarks — Labour Command Center</p>
+  <div id="loginMsg"></div>
+  <label>User ID</label>
+  <input id="loginUser" placeholder="e.g. ceo">
+  <label>Password</label>
+  <input id="loginPass" type="password">
+  <button class="btn" onclick="doLogin()">Log In</button>
+</div>
+
+<div id="app" class="hidden">
+  <div class="topbar">
+    <div>
+      <h1>Labour Command Center</h1>
+      <div class="sub" id="genAt"></div>
+    </div>
+    <button onclick="doLogout()">Log out</button>
+  </div>
+
+  <div class="wrap">
+    <div class="cards">
+      <div class="stat"><div class="label">Total Required</div><div class="value" id="statReq">–</div></div>
+      <div class="stat"><div class="label">Total Supplied</div><div class="value" id="statSup">–</div></div>
+      <div class="stat"><div class="label">Total Gap</div><div class="value bad" id="statGap">–</div></div>
+      <div class="stat"><div class="label">Fulfilment %</div><div class="value" id="statFul">–</div></div>
+      <div class="stat"><div class="label">Critical Projects</div><div class="value bad" id="statCrit">–</div></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>Demand–Supply Gap by Project</h3>
+        <canvas id="projectChart"></canvas>
+      </div>
+      <div class="card">
+        <h3>Demand–Supply Gap by Trade</h3>
+        <canvas id="tradeChart"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Contractor Ratings</h3>
+      <p class="small" style="margin-bottom:12px;">Rating blends fulfilment rate (labour delivered vs share of requirement) with verification accuracy (does PM's on-site headcount match what was logged as supplied). "Unverified" contractors haven't had a PM cross-check yet.</p>
+      <table>
+        <thead><tr><th>Contractor</th><th>Projects</th><th>Requirements Touched</th><th>Total Supplied</th><th>Fulfilment</th><th>Verification</th><th>Rating</th></tr></thead>
+        <tbody id="contractorBody"></tbody>
+      </table>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>Requirement vs Supply Trend</h3>
+        <canvas id="trendChart"></canvas>
+      </div>
+      <div class="card">
+        <h3>Verification Mismatch Flags</h3>
+        <p class="small" style="margin-bottom:12px;">Requirements where the PM's on-site headcount didn't match what CBD logged as supplied — possible ghost labour, undercounting, or reporting lag.</p>
+        <div id="mismatchList"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Project Risk Table</h3>
+      <table>
+        <thead><tr><th>Project</th><th>Required</th><th>Supplied</th><th>Gap</th><th>Gap %</th><th>Status</th></tr></thead>
+        <tbody id="projectBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
+let TOKEN = localStorage.getItem('mlc_ceo_token') || '';
+
+async function api(action, payload) {
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(Object.assign({ action, token: TOKEN }, payload || {}))
+  });
+  return res.json();
+}
+
+async function doLogin() {
+  const userId = document.getElementById('loginUser').value.trim();
+  const password = document.getElementById('loginPass').value;
+  const r = await api('login', { userId, password });
+  const msgEl = document.getElementById('loginMsg');
+  if (!r.ok) { msgEl.innerHTML = '<div class="msg msg-err">' + r.error + '</div>'; return; }
+  if (r.user.role !== 'CEO') { msgEl.innerHTML = '<div class="msg msg-err">This login is not a CEO account.</div>'; return; }
+  TOKEN = r.token;
+  localStorage.setItem('mlc_ceo_token', TOKEN);
+  enterApp();
+}
+
+async function tryResume() {
+  if (!TOKEN) return;
+  const r = await api('validateSession', {});
+  if (r.ok && r.user.role === 'CEO') enterApp();
+  else { TOKEN = ''; localStorage.removeItem('mlc_ceo_token'); }
+}
+
+function doLogout() {
+  api('logout', {});
+  TOKEN = ''; localStorage.removeItem('mlc_ceo_token');
+  location.reload();
+}
+
+function pct(x) { return (x * 100).toFixed(1) + '%'; }
+
+async function enterApp() {
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  const r = await api('getIntelligence', {});
+  if (!r.ok) { alert(r.error); return; }
+
+  document.getElementById('genAt').textContent = 'Generated ' + new Date(r.generatedAt).toLocaleString();
+  document.getElementById('statReq').textContent = r.overview.totalRequired;
+  document.getElementById('statSup').textContent = r.overview.totalSupplied;
+  document.getElementById('statGap').textContent = r.overview.totalGap;
+  document.getElementById('statFul').textContent = pct(r.overview.fulfilmentPct);
+  document.getElementById('statCrit').textContent = r.overview.criticalCount;
+
+  // Project gap chart
+  new Chart(document.getElementById('projectChart'), {
+    type: 'bar',
+    data: {
+      labels: r.projectGaps.map(p => p.project),
+      datasets: [
+        { label: 'Required', data: r.projectGaps.map(p => p.required), backgroundColor: '#C28D2C' },
+        { label: 'Supplied', data: r.projectGaps.map(p => p.supplied), backgroundColor: '#8E1B1B' }
+      ]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+  });
+
+  // Trade gap chart
+  new Chart(document.getElementById('tradeChart'), {
+    type: 'bar',
+    data: {
+      labels: r.tradeGaps.map(t => t.trade),
+      datasets: [{ label: 'Gap %', data: r.tradeGaps.map(t => (t.gapPct*100).toFixed(1)), backgroundColor: '#B23B2E' }]
+    },
+    options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
+  });
+
+  // Trend chart
+  new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+      labels: r.trend.map(t => t.date),
+      datasets: [
+        { label: 'Required', data: r.trend.map(t => t.required), borderColor: '#C28D2C', tension: .3 },
+        { label: 'Supplied', data: r.trend.map(t => t.supplied), borderColor: '#8E1B1B', tension: .3 }
+      ]
+    },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+  });
+
+  // Contractor ratings
+  const cBody = document.getElementById('contractorBody');
+  cBody.innerHTML = '';
+  r.contractorRatings.forEach(c => {
+    const color = c.rating >= 75 ? '#2E7D32' : (c.rating >= 50 ? '#C28D2C' : '#B23B2E');
+    const verifText = c.verificationAccuracy === null ? 'Unverified' : pct(c.verificationAccuracy);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${c.contractor}</strong></td>
+      <td>${c.projectList.join(', ')}</td>
+      <td>${c.requirementCount}</td>
+      <td>${c.totalSupplied}</td>
+      <td>${pct(c.fulfilmentRate)}</td>
+      <td>${verifText}</td>
+      <td style="min-width:140px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="rating-bar-bg" style="flex:1;"><div class="rating-bar" style="width:${c.rating}%;background:${color};"></div></div>
+          <span style="font-weight:700;color:${color};">${c.rating}</span>
+        </div>
+      </td>
+    `;
+    cBody.appendChild(tr);
+  });
+
+  // Mismatch flags
+  const mList = document.getElementById('mismatchList');
+  mList.innerHTML = r.mismatches.length ? '' : '<p class="small">No mismatches flagged.</p>';
+  r.mismatches.slice(0, 15).forEach(m => {
+    const div = document.createElement('div');
+    div.className = 'flag-item';
+    div.innerHTML = `<strong>${m.project}</strong> — ${m.trade} (${m.date}): on-site count differs from logged supply by <strong>${m.variance > 0 ? '+' : ''}${m.variance}</strong>${m.remarks ? ' — ' + m.remarks : ''}`;
+    mList.appendChild(div);
+  });
+
+  // Project risk table
+  const pBody = document.getElementById('projectBody');
+  pBody.innerHTML = '';
+  r.projectGaps.forEach(p => {
+    const status = p.gapPct >= 0.3 ? 'CRITICAL' : (p.gapPct >= 0.1 ? 'MODERATE' : 'HEALTHY');
+    const badgeClass = status === 'CRITICAL' ? 'badge-crit' : (status === 'MODERATE' ? 'badge-mod' : 'badge-good');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><strong>${p.project}</strong></td>
+      <td>${p.required}</td>
+      <td>${p.supplied}</td>
+      <td>${p.gap}</td>
+      <td>${pct(p.gapPct)}</td>
+      <td><span class="badge ${badgeClass}">${status}</span></td>
+    `;
+    pBody.appendChild(tr);
+  });
+}
+
+tryResume();
+</script>
+</body>
+</html>
