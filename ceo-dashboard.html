@@ -54,24 +54,12 @@
 </head>
 <body>
 
-<div id="loginScreen" class="card">
-  <h2 style="margin-bottom:4px;">CEO Dashboard</h2>
-  <p class="small" style="margin-bottom:18px;">Mangalam Landmarks — Labour Command Center</p>
-  <div id="loginMsg"></div>
-  <label>User ID</label>
-  <input id="loginUser" placeholder="e.g. ceo">
-  <label>Password</label>
-  <input id="loginPass" type="password">
-  <button class="btn" onclick="doLogin()">Log In</button>
-</div>
-
-<div id="app" class="hidden">
+<div id="app">
   <div class="topbar">
     <div>
       <h1>Labour Command Center</h1>
       <div class="sub" id="genAt"></div>
     </div>
-    <button onclick="doLogout()">Log out</button>
   </div>
 
   <div class="wrap">
@@ -126,48 +114,20 @@
 </div>
 
 <script>
-const API_URL = 'https://script.google.com/macros/s/AKfycbyvwLXJ_qhCHpQhVoMP01QbLTD0HTojHZh6AYA1TYUweqOhVtiycG_tWho5rEH-VTla9Q/exec';
-let TOKEN = localStorage.getItem('mlc_ceo_token') || '';
+const API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 
 async function api(action, payload) {
   const res = await fetch(API_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(Object.assign({ action, token: TOKEN }, payload || {}))
+    body: JSON.stringify(Object.assign({ action }, payload || {}))
   });
   return res.json();
-}
-
-async function doLogin() {
-  const userId = document.getElementById('loginUser').value.trim();
-  const password = document.getElementById('loginPass').value;
-  const r = await api('login', { userId, password });
-  const msgEl = document.getElementById('loginMsg');
-  if (!r.ok) { msgEl.innerHTML = '<div class="msg msg-err">' + r.error + '</div>'; return; }
-  if (r.user.role !== 'CEO') { msgEl.innerHTML = '<div class="msg msg-err">This login is not a CEO account.</div>'; return; }
-  TOKEN = r.token;
-  localStorage.setItem('mlc_ceo_token', TOKEN);
-  enterApp();
-}
-
-async function tryResume() {
-  if (!TOKEN) return;
-  const r = await api('validateSession', {});
-  if (r.ok && r.user.role === 'CEO') enterApp();
-  else { TOKEN = ''; localStorage.removeItem('mlc_ceo_token'); }
-}
-
-function doLogout() {
-  api('logout', {});
-  TOKEN = ''; localStorage.removeItem('mlc_ceo_token');
-  location.reload();
 }
 
 function pct(x) { return (x * 100).toFixed(1) + '%'; }
 
 async function enterApp() {
-  document.getElementById('loginScreen').classList.add('hidden');
-  document.getElementById('app').classList.remove('hidden');
   const r = await api('getIntelligence', {});
   if (!r.ok) { alert(r.error); return; }
 
@@ -213,9 +173,12 @@ async function enterApp() {
       type: 'bar',
       data: {
         labels: r.tradeGaps.map(t => t.trade),
-        datasets: [{ label: 'Gap %', data: r.tradeGaps.map(t => (t.gapPct*100).toFixed(1)), backgroundColor: '#B23B2E' }]
+        datasets: [
+          { label: 'Required', data: r.tradeGaps.map(t => t.required), backgroundColor: '#C28D2C' },
+          { label: 'Supplied', data: r.tradeGaps.map(t => t.supplied), backgroundColor: '#8E1B1B' }
+        ]
       },
-      options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
+      options: { indexAxis: 'y', responsive: true, plugins: { legend: { position: 'bottom' } } }
     });
   });
 
@@ -294,7 +257,7 @@ async function enterApp() {
   });
 }
 
-tryResume();
+enterApp();
 </script>
 </body>
 </html>
