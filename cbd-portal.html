@@ -41,6 +41,9 @@
   .supply-form label{margin-bottom:3px;}
   .existing-supply{font-size:12px;color:var(--muted);margin-top:6px;}
   .gap-tag{font-weight:700;color:var(--bad);}
+  .verify-note{font-size:12px;margin-top:8px;padding:6px 10px;border-radius:6px;}
+  .verify-mismatch{background:#fdeaea;color:var(--bad);}
+  .verify-match{background:#e6f4e6;color:var(--ok);}
 </style>
 </head>
 <body>
@@ -162,6 +165,9 @@ async function loadRequirements() {
           <button class="btn" onclick="addSupply('${req.ReqID}')">Add</button>
         </div>
         ${existingList ? `<div class="existing-supply">Logged: ${existingList}</div>` : ''}
+        ${req.lastVerification ? `<div class="verify-note ${req.hasMismatch ? 'verify-mismatch' : 'verify-match'}">
+          PM verified ${req.lastVerification.ActualOnSite} on site (${req.lastVerification.Date})${req.hasMismatch ? ` — mismatch: ${req.lastVerification.Variance > 0 ? '+' : ''}${req.lastVerification.Variance} vs what was logged` : ' — matches logged supply'}
+        </div>` : ''}
       </td>
     `;
     body.appendChild(tr);
