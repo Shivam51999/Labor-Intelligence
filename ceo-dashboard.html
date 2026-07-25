@@ -90,6 +90,12 @@
           <label style="margin-bottom:6px;">To</label>
           <input type="date" id="filterTo" style="margin-bottom:0;width:auto;">
         </div>
+        <div style="flex:0 0 auto;">
+          <label style="margin-bottom:6px;">Project</label>
+          <select id="filterProject" style="margin-bottom:0;width:auto;">
+            <option value="">All Projects</option>
+          </select>
+        </div>
         <button class="btn" style="width:auto;padding:10px 18px;" onclick="applyFilter()">Apply</button>
         <button class="btn" style="width:auto;padding:10px 18px;background:#eee2d3;color:var(--ink);" onclick="setPreset('week')">This Week</button>
         <button class="btn" style="width:auto;padding:10px 18px;background:#eee2d3;color:var(--ink);" onclick="setPreset('month')">This Month</button>
@@ -149,6 +155,25 @@
 
     <div class="grid2">
       <div class="card">
+        <h3>CBD Team Performance</h3>
+        <p class="small" style="margin-bottom:12px;">Response speed + verification accuracy. "Top Contractor" shows what share of a person's total supply comes from their single most-used vendor — a high % is worth a conversation, not automatically a problem.</p>
+        <table>
+          <thead><tr><th>CBD</th><th>Req. Touched</th><th>Supplied</th><th>Avg Response</th><th>Verification</th><th>Top Contractor</th><th>Rating</th></tr></thead>
+          <tbody id="cbdBody"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3>PM Performance</h3>
+        <p class="small" style="margin-bottom:12px;">Verification completion rate (do they actually cross-check what CBD supplied) + how quickly their requirements get a response from CBD.</p>
+        <table>
+          <thead><tr><th>PM</th><th>Requirements Raised</th><th>Total Required</th><th>Verified %</th><th>Avg Response</th><th>Rating</th></tr></thead>
+          <tbody id="pmBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
         <h3>Requirement vs Supply Trend</h3>
         <canvas id="trendChart"></canvas>
       </div>
@@ -176,14 +201,16 @@
       <h3 id="modalTitle">Detail</h3>
       <button class="btn" style="width:auto;padding:6px 12px;" onclick="closeModal()">Close</button>
     </div>
+    <div id="modalSubFilter" style="margin-bottom:14px;"></div>
     <div id="modalBody"></div>
   </div>
 </div>
 
 <script>
 const API_URL = 'https://script.google.com/macros/s/AKfycbyvwLXJ_qhCHpQhVoMP01QbLTD0HTojHZh6AYA1TYUweqOhVtiycG_tWho5rEH-VTla9Q/exec';
-let currentFilter = { startDate: null, endDate: null };
+let currentFilter = { startDate: null, endDate: null, project: null };
 let lastData = null;
+let projectListPopulated = false;
 
 async function api(action, payload) {
   const res = await fetch(API_URL, {
@@ -217,7 +244,7 @@ function setPreset(preset) {
   } else if (preset === 'all') {
     document.getElementById('filterFrom').value = '';
     document.getElementById('filterTo').value = '';
-    currentFilter = { startDate: null, endDate: null };
+    currentFilter = { startDate: null, endDate: null, project: document.getElementById('filterProject').value || null };
     enterApp();
     return;
   }
@@ -229,56 +256,93 @@ function setPreset(preset) {
 function applyFilter() {
   currentFilter = {
     startDate: document.getElementById('filterFrom').value || null,
-    endDate: document.getElementById('filterTo').value || null
+    endDate: document.getElementById('filterTo').value || null,
+    project: document.getElementById('filterProject').value || null
   };
   enterApp();
 }
 
 function closeModal() { document.getElementById('detailModal').classList.add('hidden'); }
 
+let modalRequirements = [];
+let modalSupply = [];
+
+function renderProjectDetailTable(trade) {
+  const filtered = trade ? modalRequirements.filter(req => req.trade === trade) : modalRequirements;
+  const body = document.getElementById('modalBody');
+  if (!filtered.length) { body.innerHTML = '<p class="small">No requirements match this filter.</p>'; return; }
+  body.innerHTML = `<table><thead><tr><th>Date</th><th>Activity/Trade</th><th>Required</th><th>Supplied</th><th>Gap</th><th>Response</th><th>Status</th><th>Verified</th></tr></thead><tbody>
+    ${filtered.map(req => `<tr>
+      <td>${req.date}</td>
+      <td>${req.activity || '-'} / ${req.trade}</td>
+      <td>${req.required}</td>
+      <td>${req.supplied}</td>
+      <td>${req.gap}</td>
+      <td>${req.responseLabel || '—'}</td>
+      <td>${req.status}</td>
+      <td>${req.verification ? (Number(req.verification.variance) !== 0 ? 'Mismatch ' + req.verification.variance : 'OK') : '—'}</td>
+    </tr>`).join('')}
+  </tbody></table>`;
+}
+
 async function openProjectDetail(project) {
   const r = await api('getProjectDetail', { project, startDate: currentFilter.startDate, endDate: currentFilter.endDate });
   if (!r.ok) { alert(r.error); return; }
   document.getElementById('modalTitle').textContent = project + ' — Requirement History';
-  const body = document.getElementById('modalBody');
-  if (!r.requirements.length) { body.innerHTML = '<p class="small">No requirements in this range.</p>'; }
-  else {
-    body.innerHTML = `<table><thead><tr><th>Date</th><th>Activity/Trade</th><th>Required</th><th>Supplied</th><th>Gap</th><th>Response</th><th>Status</th><th>Verified</th></tr></thead><tbody>
-      ${r.requirements.map(req => `<tr>
-        <td>${req.date}</td>
-        <td>${req.activity || '-'} / ${req.trade}</td>
-        <td>${req.required}</td>
-        <td>${req.supplied}</td>
-        <td>${req.gap}</td>
-        <td>${req.responseLabel || '—'}</td>
-        <td>${req.status}</td>
-        <td>${req.verification ? (Number(req.verification.variance) !== 0 ? 'Mismatch ' + req.verification.variance : 'OK') : '—'}</td>
-      </tr>`).join('')}
-    </tbody></table>`;
+  modalRequirements = r.requirements;
+
+  const trades = [...new Set(modalRequirements.map(req => req.trade))].sort();
+  const subFilter = document.getElementById('modalSubFilter');
+  if (trades.length > 1) {
+    subFilter.innerHTML = `<label style="margin-bottom:6px;">Filter by Trade</label>
+      <select id="modalTradeFilter" style="width:auto;margin-bottom:0;" onchange="renderProjectDetailTable(this.value)">
+        <option value="">All Trades</option>
+        ${trades.map(t => `<option value="${t}">${t}</option>`).join('')}
+      </select>`;
+  } else {
+    subFilter.innerHTML = '';
   }
+  renderProjectDetailTable('');
   document.getElementById('detailModal').classList.remove('hidden');
+}
+
+function renderContractorDetailTable(project) {
+  const filtered = project ? modalSupply.filter(s => s.project === project) : modalSupply;
+  const body = document.getElementById('modalBody');
+  if (!filtered.length) { body.innerHTML = '<p class="small">No supply entries match this filter.</p>'; return; }
+  body.innerHTML = `<table><thead><tr><th>Date</th><th>Project</th><th>Trade</th><th>Count</th><th>Response</th><th>Verified</th></tr></thead><tbody>
+    ${filtered.map(s => `<tr>
+      <td>${s.date}</td>
+      <td>${s.project}</td>
+      <td>${s.trade}</td>
+      <td>${s.count}</td>
+      <td>${s.responseLabel || '—'}</td>
+      <td>${s.verification ? (Number(s.verification.variance) !== 0 ? 'Mismatch ' + s.verification.variance : 'OK') : '—'}</td>
+    </tr>`).join('')}
+  </tbody></table>`;
 }
 
 async function openContractorDetail(contractor) {
   const r = await api('getContractorDetail', { contractor, startDate: currentFilter.startDate, endDate: currentFilter.endDate });
   if (!r.ok) { alert(r.error); return; }
   document.getElementById('modalTitle').textContent = contractor + ' — Supply History';
-  const body = document.getElementById('modalBody');
-  if (!r.supply.length) { body.innerHTML = '<p class="small">No supply entries in this range.</p>'; }
-  else {
-    body.innerHTML = `<table><thead><tr><th>Date</th><th>Project</th><th>Trade</th><th>Count</th><th>Response</th><th>Verified</th></tr></thead><tbody>
-      ${r.supply.map(s => `<tr>
-        <td>${s.date}</td>
-        <td>${s.project}</td>
-        <td>${s.trade}</td>
-        <td>${s.count}</td>
-        <td>${s.responseLabel || '—'}</td>
-        <td>${s.verification ? (Number(s.verification.variance) !== 0 ? 'Mismatch ' + s.verification.variance : 'OK') : '—'}</td>
-      </tr>`).join('')}
-    </tbody></table>`;
+  modalSupply = r.supply;
+
+  const projects = [...new Set(modalSupply.map(s => s.project))].sort();
+  const subFilter = document.getElementById('modalSubFilter');
+  if (projects.length > 1) {
+    subFilter.innerHTML = `<label style="margin-bottom:6px;">Filter by Project</label>
+      <select id="modalProjectFilter" style="width:auto;margin-bottom:0;" onchange="renderContractorDetailTable(this.value)">
+        <option value="">All Projects</option>
+        ${projects.map(p => `<option value="${p}">${p}</option>`).join('')}
+      </select>`;
+  } else {
+    subFilter.innerHTML = '';
   }
+  renderContractorDetailTable('');
   document.getElementById('detailModal').classList.remove('hidden');
 }
+
 
 function exportCSV() {
   if (!lastData) return;
@@ -291,14 +355,26 @@ function exportCSV() {
   const blob = new Blob([csv], { type: 'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `labour-intelligence-${currentFilter.startDate || 'alltime'}-to-${currentFilter.endDate || 'now'}.csv`;
+  a.download = `labour-intelligence-${currentFilter.project || 'allprojects'}-${currentFilter.startDate || 'alltime'}-to-${currentFilter.endDate || 'now'}.csv`;
   a.click();
 }
 
 async function enterApp() {
-  const r = await api('getIntelligence', { startDate: currentFilter.startDate, endDate: currentFilter.endDate });
+  const r = await api('getIntelligence', { startDate: currentFilter.startDate, endDate: currentFilter.endDate, project: currentFilter.project });
   if (!r.ok) { alert(r.error); return; }
   lastData = r;
+
+  if (!projectListPopulated && !currentFilter.project) {
+    const sel = document.getElementById('filterProject');
+    const names = r.projectGaps.map(p => p.project).sort();
+    names.forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = name; opt.textContent = name;
+      sel.appendChild(opt);
+    });
+    projectListPopulated = true;
+  }
+  document.getElementById('filterProject').value = currentFilter.project || '';
 
   if (typeof Chart === 'undefined') {
     document.querySelector('.wrap').insertAdjacentHTML('afterbegin',
@@ -394,6 +470,59 @@ async function enterApp() {
         </td>
       `;
       cBody.appendChild(tr);
+    });
+  });
+
+  // CBD team performance
+  safe('cbd ratings', () => {
+    const body = document.getElementById('cbdBody');
+    body.innerHTML = '';
+    r.cbdRatings.forEach(c => {
+      const color = c.rating >= 75 ? '#2E7D32' : (c.rating >= 50 ? '#C28D2C' : '#B23B2E');
+      const verifText = c.verificationAccuracy === null ? 'Unverified' : pct(c.verificationAccuracy);
+      const concentrationNote = c.topContractor ? `${c.topContractor} (${c.topContractorSharePct}%)` : '—';
+      const concentrationFlag = c.topContractorSharePct >= 70 ? ' style="color:var(--bad);font-weight:700;"' : '';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${c.name}</strong></td>
+        <td>${c.requirementCount}</td>
+        <td>${c.totalSupplied}</td>
+        <td>${c.avgResponseLabel || '—'}</td>
+        <td>${verifText}</td>
+        <td${concentrationFlag}>${concentrationNote}</td>
+        <td style="min-width:120px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="rating-bar-bg" style="flex:1;"><div class="rating-bar" style="width:${c.rating}%;background:${color};"></div></div>
+            <span style="font-weight:700;color:${color};">${c.rating}</span>
+          </div>
+        </td>
+      `;
+      body.appendChild(tr);
+    });
+  });
+
+  // PM performance
+  safe('pm ratings', () => {
+    const body = document.getElementById('pmBody');
+    body.innerHTML = '';
+    r.pmRatings.forEach(p => {
+      const color = p.rating >= 75 ? '#2E7D32' : (p.rating >= 50 ? '#C28D2C' : '#B23B2E');
+      const verifFlag = p.verificationRatePct < 50 ? ' style="color:var(--bad);font-weight:700;"' : '';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${p.name}</strong></td>
+        <td>${p.requirementCount}</td>
+        <td>${p.totalRequired}</td>
+        <td${verifFlag}>${p.verificationRatePct}%</td>
+        <td>${p.avgResponseLabel || '—'}</td>
+        <td style="min-width:120px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="rating-bar-bg" style="flex:1;"><div class="rating-bar" style="width:${p.rating}%;background:${color};"></div></div>
+            <span style="font-weight:700;color:${color};">${p.rating}</span>
+          </div>
+        </td>
+      `;
+      body.appendChild(tr);
     });
   });
 
