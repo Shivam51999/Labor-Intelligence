@@ -48,6 +48,9 @@
   .inline-form input{margin-bottom:0;}
   .span-hint{font-size:12px;color:var(--gold);font-weight:700;margin:-8px 0 14px;}
   .period-cell .days{font-size:11px;color:var(--muted);display:block;margin-top:2px;}
+  .tabs{display:flex;gap:8px;margin-bottom:18px;}
+  .tab-btn{padding:9px 18px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;font-weight:700;font-size:13px;color:var(--muted);font-family:'DM Sans',sans-serif;}
+  .tab-btn.active{background:var(--maroon);color:#fff;border-color:var(--maroon);}
 </style>
 </head>
 <body>
@@ -74,6 +77,12 @@
   </div>
 
   <div class="wrap">
+    <div class="tabs">
+      <button class="tab-btn active" id="tabBtnLabour" onclick="switchTab('labour')">Labour Requirement</button>
+      <button class="tab-btn" id="tabBtnPurchase" onclick="switchTab('purchase')">Purchase Request</button>
+    </div>
+
+    <div id="tabLabour">
     <div class="card">
       <h3 style="margin-bottom:14px;">Raise Labour Requirement</h3>
       <div class="grid2">
@@ -126,6 +135,52 @@
         <tbody id="reqTableBody"></tbody>
       </table>
     </div>
+    </div>
+
+    <div id="tabPurchase" class="hidden">
+    <div class="card">
+      <h3 style="margin-bottom:14px;">Raise Purchase Request</h3>
+      <div class="grid2">
+        <div>
+          <label>Item</label>
+          <input id="pReqItem" placeholder="e.g. TMT Steel Bars 12mm">
+        </div>
+        <div>
+          <label>Quantity</label>
+          <input type="number" min="1" id="pReqQty">
+        </div>
+      </div>
+      <div class="grid2">
+        <div>
+          <label>Unit (optional)</label>
+          <input id="pReqUnit" placeholder="e.g. bags, tons, nos">
+        </div>
+        <div>
+          <label>Needed By</label>
+          <input type="date" id="pReqNeededBy">
+        </div>
+      </div>
+      <div class="grid2">
+        <div>
+          <label>Estimated Cost (₹)</label>
+          <input type="number" min="0" id="pReqCost">
+        </div>
+        <div></div>
+      </div>
+      <button class="btn" onclick="submitPurchaseRequest()">Submit Request</button>
+      <div id="pReqMsg" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:14px;">My Purchase Requests</h3>
+      <table>
+        <thead>
+          <tr><th>Item</th><th>Needed By</th><th>Qty Req.</th><th>Qty Fulfilled</th><th>Gap</th><th>Est. Cost</th><th>Actual Spend</th><th>Vendors</th><th>Status</th></tr>
+        </thead>
+        <tbody id="pReqTableBody"></tbody>
+      </table>
+    </div>
+    </div>
   </div>
 </div>
 
@@ -175,6 +230,19 @@ function enterApp() {
   document.getElementById('reqDateTo').valueAsDate = new Date();
   updateSpanHint();
   loadRequirements();
+}
+
+let purchaseTabLoaded = false;
+
+function switchTab(tab) {
+  document.getElementById('tabLabour').classList.toggle('hidden', tab !== 'labour');
+  document.getElementById('tabPurchase').classList.toggle('hidden', tab !== 'purchase');
+  document.getElementById('tabBtnLabour').classList.toggle('active', tab === 'labour');
+  document.getElementById('tabBtnPurchase').classList.toggle('active', tab === 'purchase');
+  if (tab === 'purchase' && !purchaseTabLoaded) {
+    purchaseTabLoaded = true;
+    loadPurchaseRequests();
+  }
 }
 
 function updateSpanHint() {
@@ -257,6 +325,57 @@ async function loadRequirements() {
         </div>
         ${req.lastVerification ? `<div class="small" style="margin-top:4px;">Last: ${req.lastVerification.ActualOnSite} on site (${req.lastVerification.Date}) — variance ${req.lastVerification.Variance}</div>` : ''}
       </td>
+    `;
+    body.appendChild(tr);
+  });
+}
+
+async function submitPurchaseRequest() {
+  const el = document.getElementById('pReqMsg');
+  const payload = {
+    item: document.getElementById('pReqItem').value.trim(),
+    quantity: document.getElementById('pReqQty').value,
+    unit: document.getElementById('pReqUnit').value.trim(),
+    neededByDate: document.getElementById('pReqNeededBy').value,
+    estimatedCost: document.getElementById('pReqCost').value
+  };
+  if (!payload.item || !payload.quantity || Number(payload.quantity) <= 0) {
+    el.innerHTML = '<div class="msg msg-err">Enter an item and a valid quantity.</div>';
+    return;
+  }
+  const r = await api('createPurchaseRequest', payload);
+  if (r.ok) {
+    el.innerHTML = '<div class="msg msg-ok">Purchase request submitted.</div>';
+    document.getElementById('pReqItem').value = '';
+    document.getElementById('pReqQty').value = '';
+    document.getElementById('pReqUnit').value = '';
+    document.getElementById('pReqNeededBy').value = '';
+    document.getElementById('pReqCost').value = '';
+    loadPurchaseRequests();
+  } else {
+    el.innerHTML = '<div class="msg msg-err">' + r.error + '</div>';
+  }
+}
+
+async function loadPurchaseRequests() {
+  const r = await api('getMyPurchaseRequests', {});
+  if (!r.ok) return;
+  const body = document.getElementById('pReqTableBody');
+  body.innerHTML = '';
+  r.requests.sort((a, b) => new Date(b.Timestamp) - new Date(a.Timestamp)).forEach(req => {
+    const statusClass = req.Status === 'Fulfilled' ? 'badge-full' : (req.Status === 'Partially Fulfilled' ? 'badge-partial' : 'badge-open');
+    const gapClass = req.gap > 0 ? 'gap-pos' : 'gap-neg';
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${req.Item}${req.Unit ? '<div class="small">' + req.Unit + '</div>' : ''}</td>
+      <td>${req.NeededByDate || '—'}</td>
+      <td>${req.Quantity}</td>
+      <td>${req.totalQtyFulfilled}</td>
+      <td class="${gapClass}">${req.gap > 0 ? '+' + req.gap : req.gap}</td>
+      <td>₹${Number(req.EstimatedCost).toLocaleString('en-IN')}</td>
+      <td>₹${Number(req.totalSpend).toLocaleString('en-IN')}</td>
+      <td class="small">${req.vendors.length ? req.vendors.join(', ') : '—'}</td>
+      <td><span class="badge ${statusClass}">${req.Status}</span></td>
     `;
     body.appendChild(tr);
   });
