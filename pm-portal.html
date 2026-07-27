@@ -46,6 +46,8 @@
   .verify-row td{vertical-align:top;}
   .inline-form{display:flex;gap:8px;align-items:flex-end;}
   .inline-form input{margin-bottom:0;}
+  .span-hint{font-size:12px;color:var(--gold);font-weight:700;margin:-8px 0 14px;}
+  .period-cell .days{font-size:11px;color:var(--muted);display:block;margin-top:2px;}
 </style>
 </head>
 <body>
@@ -74,11 +76,18 @@
   <div class="wrap">
     <div class="card">
       <h3 style="margin-bottom:14px;">Raise Labour Requirement</h3>
-      <div class="grid3">
+      <div class="grid2">
         <div>
-          <label>Date</label>
-          <input type="date" id="reqDate">
+          <label>From</label>
+          <input type="date" id="reqDateFrom" onchange="updateSpanHint()">
         </div>
+        <div>
+          <label>To</label>
+          <input type="date" id="reqDateTo" onchange="updateSpanHint()">
+        </div>
+      </div>
+      <p class="span-hint" id="spanHint"></p>
+      <div class="grid2">
         <div>
           <label>Building / Wing</label>
           <input id="reqBuilding" placeholder="e.g. A/B">
@@ -100,10 +109,10 @@
         </div>
         <div>
           <label>Number of Labour Required</label>
-          <input type="number" min="1" id="reqCount">
+          <input type="number" min="1" id="reqCount" oninput="updateSpanHint()">
         </div>
       </div>
-      <p class="small" style="margin-bottom:12px;">You only specify count + type. CBD will assign the contractor(s) who supply against this.</p>
+      <p class="small" style="margin-bottom:12px;">Set the whole period this requirement covers instead of raising it daily — CBD arranges and verifies against it as one block for the full range. You only specify count + type; CBD assigns the contractor(s).</p>
       <button class="btn" onclick="submitRequirement()">Submit Requirement</button>
       <div id="reqMsg" style="margin-top:10px;"></div>
     </div>
@@ -112,7 +121,7 @@
       <h3 style="margin-bottom:14px;">My Requirements &amp; Supply Status</h3>
       <table>
         <thead>
-          <tr><th>Date</th><th>Activity / Trade</th><th>Required</th><th>Supplied</th><th>Gap</th><th>Contractors</th><th>Status</th><th>Verify</th></tr>
+          <tr><th>Period</th><th>Activity / Trade</th><th>Required</th><th>Supplied</th><th>Gap</th><th>Contractors</th><th>Status</th><th>Verify</th></tr>
         </thead>
         <tbody id="reqTableBody"></tbody>
       </table>
@@ -162,8 +171,23 @@ function enterApp() {
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('whoami').textContent = USER.fullName + ' · ' + USER.projects;
-  document.getElementById('reqDate').valueAsDate = new Date();
+  document.getElementById('reqDateFrom').valueAsDate = new Date();
+  document.getElementById('reqDateTo').valueAsDate = new Date();
+  updateSpanHint();
   loadRequirements();
+}
+
+function updateSpanHint() {
+  const fromVal = document.getElementById('reqDateFrom').value;
+  const toVal = document.getElementById('reqDateTo').value;
+  const hint = document.getElementById('spanHint');
+  if (!fromVal || !toVal) { hint.textContent = ''; return; }
+  const days = Math.round((new Date(toVal) - new Date(fromVal)) / 86400000) + 1;
+  if (days < 1) { hint.textContent = 'To date is before From date.'; return; }
+  const count = Number(document.getElementById('reqCount').value) || 0;
+  hint.textContent = days === 1
+    ? '1 day'
+    : `${days} days${count ? ' · ~' + (days * count) + ' man-days total' : ''}`;
 }
 
 function doLogout() {
@@ -173,24 +197,34 @@ function doLogout() {
 }
 
 async function submitRequirement() {
+  const el = document.getElementById('reqMsg');
   const payload = {
-    date: document.getElementById('reqDate').value,
+    startDate: document.getElementById('reqDateFrom').value,
+    endDate: document.getElementById('reqDateTo').value,
     building: document.getElementById('reqBuilding').value,
     activity: document.getElementById('reqActivity').value,
     trade: document.getElementById('reqTrade').value,
     requiredCount: document.getElementById('reqCount').value
   };
+  if (!payload.startDate || !payload.endDate) {
+    el.innerHTML = '<div class="msg msg-err">Pick both a From and To date.</div>';
+    return;
+  }
+  if (payload.endDate < payload.startDate) {
+    el.innerHTML = '<div class="msg msg-err">To date can\'t be before From date.</div>';
+    return;
+  }
   if (!payload.requiredCount || Number(payload.requiredCount) <= 0) {
-    document.getElementById('reqMsg').innerHTML = '<div class="msg msg-err">Enter a valid labour count.</div>';
+    el.innerHTML = '<div class="msg msg-err">Enter a valid labour count.</div>';
     return;
   }
   const r = await api('createRequirement', payload);
-  const el = document.getElementById('reqMsg');
   if (r.ok) {
-    el.innerHTML = '<div class="msg msg-ok">Requirement submitted.</div>';
+    el.innerHTML = '<div class="msg msg-ok">Requirement submitted' + (r.days ? ' — covers ' + r.days + ' day' + (r.days === 1 ? '' : 's') : '') + '.</div>';
     document.getElementById('reqBuilding').value = '';
     document.getElementById('reqActivity').value = '';
     document.getElementById('reqCount').value = '';
+    updateSpanHint();
     loadRequirements();
   } else {
     el.innerHTML = '<div class="msg msg-err">' + r.error + '</div>';
@@ -207,8 +241,9 @@ async function loadRequirements() {
     const gapClass = req.gap > 0 ? 'gap-pos' : 'gap-neg';
     const tr = document.createElement('tr');
     tr.className = 'verify-row';
+    const periodLabel = req.StartDate === req.EndDate ? req.StartDate : `${req.StartDate} – ${req.EndDate}`;
     tr.innerHTML = `
-      <td>${req.Date}<div class="small">${fmtTime(req.Timestamp)}</div></td>
+      <td class="period-cell">${periodLabel}<span class="days">${req.Days} day${req.Days === 1 ? '' : 's'} · ${req.ManDays} man-days</span><div class="small">${fmtTime(req.Timestamp)}</div></td>
       <td>${req.Activity || '-'} / ${req.Trade}</td>
       <td>${req.RequiredCount}</td>
       <td>${req.totalSupplied}${req.responseLabel ? `<div class="small">Response: ${req.responseLabel}</div>` : ''}</td>
