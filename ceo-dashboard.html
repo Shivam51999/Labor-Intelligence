@@ -119,7 +119,7 @@
 
     <div class="grid2">
       <div class="card">
-        <h3>Demand–Supply Gap by Project</h3>
+        <h3 id="projectChartTitle">Demand–Supply Gap by Project</h3>
         <canvas id="projectChart"></canvas>
       </div>
       <div class="card">
@@ -403,16 +403,23 @@ async function enterApp() {
     try { fn(); } catch (err) { console.error('Dashboard section failed: ' + label, err); }
   }
 
-  // Project gap chart
+  // Project chart — once a single site is selected this becomes a building/wing
+  // breakdown for that site instead of a one-bar "chart" of the site against itself.
   safe('project chart', () => {
     if (typeof Chart === 'undefined') return;
+    const scoped = !!currentFilter.project;
+    const source = scoped ? r.buildingGaps : r.projectGaps;
+    const labels = scoped ? source.map(b => b.building) : source.map(p => p.project);
+    document.getElementById('projectChartTitle').textContent = scoped
+      ? `Demand–Supply Gap by Building — ${currentFilter.project}`
+      : 'Demand–Supply Gap by Project';
     new Chart(document.getElementById('projectChart'), {
       type: 'bar',
       data: {
-        labels: r.projectGaps.map(p => p.project),
+        labels: labels,
         datasets: [
-          { label: 'Required', data: r.projectGaps.map(p => p.required), backgroundColor: '#C28D2C' },
-          { label: 'Supplied', data: r.projectGaps.map(p => p.supplied), backgroundColor: '#8E1B1B' }
+          { label: 'Required', data: source.map(x => x.required), backgroundColor: '#C28D2C' },
+          { label: 'Supplied', data: source.map(x => x.supplied), backgroundColor: '#8E1B1B' }
         ]
       },
       options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
