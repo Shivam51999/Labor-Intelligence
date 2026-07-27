@@ -196,6 +196,44 @@
         <tbody id="projectBody"></tbody>
       </table>
     </div>
+
+    <h2 style="margin:36px 0 16px;font-size:24px;">Purchase Intelligence</h2>
+
+    <div class="cards">
+      <div class="stat"><div class="label">Qty Requested</div><div class="value" id="pStatReq">–</div></div>
+      <div class="stat"><div class="label">Qty Fulfilled</div><div class="value" id="pStatFul">–</div></div>
+      <div class="stat"><div class="label">Fulfilment %</div><div class="value" id="pStatFulPct">–</div></div>
+      <div class="stat"><div class="label">Open Requests</div><div class="value bad" id="pStatOpen">–</div></div>
+      <div class="stat"><div class="label">Est. Cost</div><div class="value" id="pStatEstCost" style="font-size:24px;">–</div></div>
+      <div class="stat"><div class="label">Actual Spend</div><div class="value" id="pStatSpend" style="font-size:24px;">–</div></div>
+      <div class="stat"><div class="label">Cost Variance</div><div class="value" id="pStatVariance" style="font-size:24px;">–</div></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>Purchase Fulfilment by Project</h3>
+        <canvas id="purchaseProjectChart"></canvas>
+      </div>
+      <div class="card">
+        <h3>Purchase Fulfilment by Item</h3>
+        <canvas id="purchaseItemChart"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Vendor Ratings</h3>
+      <p class="small" style="margin-bottom:12px;">Rating is based on fulfilment rate only — there's no PM verification step for purchase (unlike labour), so this is a lighter signal than the contractor ratings above.</p>
+      <table>
+        <thead><tr><th>Vendor</th><th>Requests</th><th>Qty Supplied</th><th>Spend</th><th>Avg Response</th><th>Fulfilment</th><th>Rating</th></tr></thead>
+        <tbody id="vendorBody"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Purchase Requested vs Fulfilled Trend</h3>
+      <p class="small" style="margin-bottom:12px;">Requested is grouped by needed-by date; fulfilled is grouped by the date it was logged.</p>
+      <canvas id="purchaseTrendChart"></canvas>
+    </div>
   </div>
 </div>
 
@@ -621,6 +659,90 @@ async function enterApp() {
         <td><span class="badge ${badgeClass}">${status}</span></td>
       `;
       pBody.appendChild(tr);
+    });
+  });
+
+  // ---- Purchase Intelligence ----
+
+  safe('purchase overview', () => {
+    const inr = n => '₹' + Number(n).toLocaleString('en-IN');
+    document.getElementById('pStatReq').textContent = r.purchaseOverview.totalQtyRequested;
+    document.getElementById('pStatFul').textContent = r.purchaseOverview.totalQtyFulfilled;
+    document.getElementById('pStatFulPct').textContent = pct(r.purchaseOverview.purchaseFulfilmentPct);
+    document.getElementById('pStatOpen').textContent = r.purchaseOverview.openPurchaseCount;
+    document.getElementById('pStatEstCost').textContent = inr(r.purchaseOverview.totalEstimatedCost);
+    document.getElementById('pStatSpend').textContent = inr(r.purchaseOverview.totalActualSpend);
+    const varEl = document.getElementById('pStatVariance');
+    varEl.textContent = (r.purchaseOverview.costVariance > 0 ? '+' : '') + inr(r.purchaseOverview.costVariance);
+    varEl.className = 'value' + (r.purchaseOverview.costVariance > 0 ? ' bad' : ' ok');
+  });
+
+  safe('purchase project chart', () => {
+    if (typeof Chart === 'undefined') return;
+    renderChart('purchaseProjectChart', {
+      type: 'bar',
+      data: {
+        labels: r.purchaseByProject.map(p => p.project),
+        datasets: [
+          { label: 'Requested Qty', data: r.purchaseByProject.map(p => p.requestedQty), backgroundColor: '#1B5E8E' },
+          { label: 'Fulfilled Qty', data: r.purchaseByProject.map(p => p.fulfilledQty), backgroundColor: '#8E1B1B' }
+        ]
+      },
+      options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    });
+  });
+
+  safe('purchase item chart', () => {
+    if (typeof Chart === 'undefined') return;
+    renderChart('purchaseItemChart', {
+      type: 'bar',
+      data: {
+        labels: r.purchaseByItem.map(i => i.item),
+        datasets: [
+          { label: 'Requested Qty', data: r.purchaseByItem.map(i => i.requestedQty), backgroundColor: '#1B5E8E' },
+          { label: 'Fulfilled Qty', data: r.purchaseByItem.map(i => i.fulfilledQty), backgroundColor: '#8E1B1B' }
+        ]
+      },
+      options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    });
+  });
+
+  safe('vendor ratings', () => {
+    const vBody = document.getElementById('vendorBody');
+    vBody.innerHTML = '';
+    r.vendorRatings.forEach(v => {
+      const color = v.rating >= 75 ? '#2E7D32' : (v.rating >= 50 ? '#C28D2C' : '#B23B2E');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><strong>${v.vendor}</strong></td>
+        <td>${v.requestCount}</td>
+        <td>${v.totalQty}</td>
+        <td>₹${Number(v.totalSpend).toLocaleString('en-IN')}</td>
+        <td>${v.avgResponseLabel || '—'}</td>
+        <td>${pct(v.fulfilmentRate)}</td>
+        <td style="min-width:140px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="rating-bar-bg" style="flex:1;"><div class="rating-bar" style="width:${v.rating}%;background:${color};"></div></div>
+            <span style="font-weight:700;color:${color};">${v.rating}</span>
+          </div>
+        </td>
+      `;
+      vBody.appendChild(tr);
+    });
+  });
+
+  safe('purchase trend chart', () => {
+    if (typeof Chart === 'undefined') return;
+    renderChart('purchaseTrendChart', {
+      type: 'line',
+      data: {
+        labels: r.purchaseTrend.map(t => t.date),
+        datasets: [
+          { label: 'Requested', data: r.purchaseTrend.map(t => t.requestedQty), borderColor: '#1B5E8E', tension: .3 },
+          { label: 'Fulfilled', data: r.purchaseTrend.map(t => t.fulfilledQty), borderColor: '#8E1B1B', tension: .3 }
+        ]
+      },
+      options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
     });
   });
 }
