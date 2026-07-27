@@ -91,9 +91,9 @@
           <input type="date" id="filterTo" style="margin-bottom:0;width:auto;">
         </div>
         <div style="flex:0 0 auto;">
-          <label style="margin-bottom:6px;">Project</label>
+          <label style="margin-bottom:6px;">Site</label>
           <select id="filterProject" style="margin-bottom:0;width:auto;">
-            <option value="">All Projects</option>
+            <option value="">All Sites</option>
           </select>
         </div>
         <button class="btn" style="width:auto;padding:10px 18px;" onclick="applyFilter()">Apply</button>
@@ -103,6 +103,7 @@
         <button class="btn" style="width:auto;padding:10px 18px;background:#eee2d3;color:var(--ink);" onclick="setPreset('all')">All Time</button>
         <button class="btn" style="width:auto;padding:10px 18px;background:transparent;color:var(--maroon);border:1px solid var(--maroon);" onclick="exportCSV()">Export CSV</button>
       </div>
+      <p class="small" style="margin-top:10px;margin-bottom:0;">Selecting a Site scopes every chart, ranking, rating and flag below to that site — not just the top summary.</p>
     </div>
 
     <div class="cards">
@@ -112,6 +113,8 @@
       <div class="stat"><div class="label">Fulfilment %</div><div class="value" id="statFul">–</div></div>
       <div class="stat"><div class="label">Avg PM→CBD Response</div><div class="value" id="statResp" style="font-size:22px;">–</div></div>
       <div class="stat"><div class="label">Critical Projects</div><div class="value bad" id="statCrit">–</div></div>
+      <div class="stat"><div class="label">Total Labour-Days</div><div class="value" id="statManDays" style="font-size:26px;">–</div></div>
+      <div class="stat"><div class="label">Avg Requirement Span</div><div class="value" id="statSpan" style="font-size:26px;">–</div></div>
     </div>
 
     <div class="grid2">
@@ -175,6 +178,7 @@
     <div class="grid2">
       <div class="card">
         <h3>Requirement vs Supply Trend</h3>
+        <p class="small" style="margin-bottom:12px;">A requirement spanning several days counts toward demand on every day of its period, not just the day it was raised.</p>
         <canvas id="trendChart"></canvas>
       </div>
       <div class="card">
@@ -271,11 +275,12 @@ function renderProjectDetailTable(trade) {
   const filtered = trade ? modalRequirements.filter(req => req.trade === trade) : modalRequirements;
   const body = document.getElementById('modalBody');
   if (!filtered.length) { body.innerHTML = '<p class="small">No requirements match this filter.</p>'; return; }
-  body.innerHTML = `<table><thead><tr><th>Date</th><th>Activity/Trade</th><th>Required</th><th>Supplied</th><th>Gap</th><th>Response</th><th>Status</th><th>Verified</th></tr></thead><tbody>
+  body.innerHTML = `<table><thead><tr><th>Period</th><th>Activity/Trade</th><th>Required</th><th>Man-Days</th><th>Supplied</th><th>Gap</th><th>Response</th><th>Status</th><th>Verified</th></tr></thead><tbody>
     ${filtered.map(req => `<tr>
-      <td>${req.date}</td>
+      <td>${req.startDate === req.endDate ? req.startDate : req.startDate + ' – ' + req.endDate}<div class="small">${req.days} day${req.days === 1 ? '' : 's'}</div></td>
       <td>${req.activity || '-'} / ${req.trade}</td>
       <td>${req.required}</td>
+      <td>${req.manDays}</td>
       <td>${req.supplied}</td>
       <td>${req.gap}</td>
       <td>${req.responseLabel || '—'}</td>
@@ -391,6 +396,8 @@ async function enterApp() {
   document.getElementById('statFul').textContent = pct(r.overview.fulfilmentPct);
   document.getElementById('statResp').textContent = r.overview.avgResponseLabel || '—';
   document.getElementById('statCrit').textContent = r.overview.criticalCount;
+  document.getElementById('statManDays').textContent = r.overview.totalManDays;
+  document.getElementById('statSpan').textContent = r.overview.avgSpanDays ? r.overview.avgSpanDays + ' days' : '—';
 
   function safe(label, fn) {
     try { fn(); } catch (err) { console.error('Dashboard section failed: ' + label, err); }
