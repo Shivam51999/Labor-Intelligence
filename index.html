@@ -19,19 +19,21 @@
   .topbar .sub{font-size:13px;color:#e9cfcf;margin-top:6px;}
   .wrap{max-width:1000px;margin:0 auto;padding:44px 28px;}
   .intro{font-size:14px;color:var(--muted);margin-bottom:32px;max-width:640px;}
-  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;}
+  .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:22px;}
   .portal-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:28px 24px;text-decoration:none;color:var(--ink);display:block;box-shadow:0 1px 3px rgba(0,0,0,.03);transition:transform .15s, box-shadow .15s;position:relative;overflow:hidden;}
   .portal-card:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(0,0,0,.08);}
   .portal-card .stripe{position:absolute;top:0;left:0;right:0;height:5px;}
   .stripe-pm{background:var(--maroon);}
   .stripe-cbd{background:var(--gold);}
+  .stripe-purchase{background:#1B5E8E;}
   .stripe-ceo{background:linear-gradient(90deg,var(--maroon),var(--gold));}
   .portal-card .tag{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:700;margin-bottom:10px;display:block;}
   .portal-card h2{font-size:24px;font-weight:700;margin-bottom:10px;}
   .portal-card p{font-size:13px;color:var(--muted);line-height:1.5;margin:0 0 18px 0;}
   .portal-card .go{font-size:12px;font-weight:700;color:var(--maroon);display:flex;align-items:center;gap:6px;}
   .footer-note{margin-top:36px;font-size:12px;color:var(--muted);border-top:1px solid var(--border);padding-top:18px;}
-  @media(max-width:800px){.grid{grid-template-columns:1fr;}}
+  @media(max-width:1000px){.grid{grid-template-columns:repeat(2,1fr);}}
+  @media(max-width:560px){.grid{grid-template-columns:1fr;}}
 </style>
 </head>
 <body>
@@ -47,14 +49,14 @@
 </div>
 
 <div class="wrap">
-  <p class="intro">Choose your portal below. Each one has its own login — Project Managers raise labour requirements, the CBD team logs the manpower arranged against them, and leadership gets a live intelligence view across every site.</p>
+  <p class="intro">Choose your portal below. Each one has its own login — Project Managers raise labour requirements and purchase requests, the CBD team logs the manpower arranged against labour requirements, the Purchase team logs what's been procured against purchase requests, and leadership gets a live intelligence view across every site.</p>
 
   <div class="grid">
     <a class="portal-card" href="pm-portal.html">
       <div class="stripe stripe-pm"></div>
       <span class="tag">Project Manager</span>
       <h2>PM Portal</h2>
-      <p>Raise labour requirements by count and trade type. Cross-verify actual on-site headcount against what CBD has supplied.</p>
+      <p>Raise labour requirements (by count and trade, over a date range) and purchase requests (item, quantity, needed-by date, estimated cost). Cross-verify actual on-site headcount against what CBD has supplied.</p>
       <div class="go">Open PM Portal →</div>
     </a>
 
@@ -66,17 +68,25 @@
       <div class="go">Open CBD Portal →</div>
     </a>
 
+    <a class="portal-card" href="purchase-portal.html">
+      <div class="stripe stripe-purchase"></div>
+      <span class="tag">Purchase Team</span>
+      <h2>Purchase Portal</h2>
+      <p>View open purchase requests across sites and log what's been procured — by vendor, quantity and cost. Multiple vendors can fulfil one request.</p>
+      <div class="go">Open Purchase Portal →</div>
+    </a>
+
     <a class="portal-card" href="ceo-dashboard.html">
       <div class="stripe stripe-ceo"></div>
       <span class="tag">Leadership</span>
       <h2>CEO Dashboard</h2>
-      <p>Contractor ratings, demand-supply gap by project and trade, requirement-vs-supply trends, and verification mismatch flags.</p>
+      <p>Contractor and vendor ratings, demand-supply gap by project and trade, purchase spend vs estimate, requirement-vs-supply trends, and verification mismatch flags.</p>
       <div class="go">Open CEO Dashboard →</div>
     </a>
   </div>
 
   <div class="footer-note">
-    Each portal requires its own User ID and password — access is role-restricted server-side, so a PM login cannot view CBD or CEO data even by opening the wrong page. Deploy all four HTML files (this one plus the three portals) to the same folder/host so the links above resolve correctly.
+    Each portal requires its own User ID and password — access is role-restricted server-side, so a PM login cannot view CBD, Purchase, or CEO data even by opening the wrong page. Deploy all five HTML files (this one plus the four portals) to the same folder/host so the links above resolve correctly.
   </div>
 </div>
 
