@@ -44,6 +44,7 @@
   .verify-note{font-size:12px;margin-top:8px;padding:6px 10px;border-radius:6px;}
   .verify-mismatch{background:#fdeaea;color:var(--bad);}
   .verify-match{background:#e6f4e6;color:var(--ok);}
+  .period-cell .days{font-size:11px;color:var(--muted);display:block;margin-top:2px;}
 </style>
 </head>
 <body>
@@ -75,7 +76,7 @@
       <p class="small" style="margin-bottom:16px;">Log the labour you have arranged against each requirement. Multiple contractors can supply against the same line — add each one as a separate entry.</p>
       <table>
         <thead>
-          <tr><th>Date</th><th>Project</th><th>Activity / Trade</th><th>Required</th><th>Supplied so far</th><th>Gap</th><th>Add Supply</th></tr>
+          <tr><th>Period</th><th>Project</th><th>Activity / Trade</th><th>Required</th><th>Supplied so far</th><th>Gap</th><th>Add Supply</th></tr>
         </thead>
         <tbody id="reqTableBody"></tbody>
       </table>
@@ -137,8 +138,9 @@ async function loadRequirements() {
   r.requirements.sort((a,b)=> new Date(b.Timestamp) - new Date(a.Timestamp)).forEach(req => {
     const tr = document.createElement('tr');
     const existingList = req.supplyLines.map(s => `${s.Contractor}: ${s.Count} ${s.Trade}`).join(' · ');
+    const periodLabel = req.StartDate === req.EndDate ? req.StartDate : `${req.StartDate} – ${req.EndDate}`;
     tr.innerHTML = `
-      <td>${req.Date}</td>
+      <td class="period-cell">${periodLabel}<span class="days">${req.Days} day${req.Days === 1 ? '' : 's'} · ${req.ManDays} man-days</span></td>
       <td>${req.Project}</td>
       <td>${req.Activity || '-'} / ${req.Trade}</td>
       <td>${req.RequiredCount}</td>
