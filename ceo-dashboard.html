@@ -92,7 +92,7 @@
         </div>
         <div style="flex:0 0 auto;">
           <label style="margin-bottom:6px;">Site</label>
-          <select id="filterProject" style="margin-bottom:0;width:auto;">
+          <select id="filterProject" style="margin-bottom:0;width:auto;" onchange="applyFilter()">
             <option value="">All Sites</option>
           </select>
         </div>
@@ -226,6 +226,17 @@ async function api(action, payload) {
 }
 
 function pct(x) { return (x * 100).toFixed(1) + '%'; }
+
+// Chart.js throws if you create a new Chart on a canvas that already has one attached —
+// without destroying the previous instance first, every re-filter's new Chart(...) call
+// was throwing (silently caught by safe() below), leaving the very first render stuck
+// on screen no matter what filter you applied afterward.
+function renderChart(canvasId, config) {
+  const canvas = document.getElementById(canvasId);
+  const existing = Chart.getChart(canvas);
+  if (existing) existing.destroy();
+  return new Chart(canvas, config);
+}
 
 function fmtDate(d) {
   const yyyy = d.getFullYear(), mm = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
@@ -413,7 +424,7 @@ async function enterApp() {
     document.getElementById('projectChartTitle').textContent = scoped
       ? `Demand–Supply Gap by Building — ${currentFilter.project}`
       : 'Demand–Supply Gap by Project';
-    new Chart(document.getElementById('projectChart'), {
+    renderChart('projectChart', {
       type: 'bar',
       data: {
         labels: labels,
@@ -429,7 +440,7 @@ async function enterApp() {
   // Trade gap chart
   safe('trade chart', () => {
     if (typeof Chart === 'undefined') return;
-    new Chart(document.getElementById('tradeChart'), {
+    renderChart('tradeChart', {
       type: 'bar',
       data: {
         labels: r.tradeGaps.map(t => t.trade),
@@ -445,7 +456,7 @@ async function enterApp() {
   // Trend chart
   safe('trend chart', () => {
     if (typeof Chart === 'undefined') return;
-    new Chart(document.getElementById('trendChart'), {
+    renderChart('trendChart', {
       type: 'line',
       data: {
         labels: r.trend.map(t => t.date),
