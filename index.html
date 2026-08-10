@@ -63,11 +63,12 @@
   h1 .accent{color:var(--red);font-weight:800;}
   .hero-desc{font-family:var(--font-body);font-size:15px;color:var(--ink-dim);max-width:600px;line-height:1.55;margin:0 0 28px;}
 
-  .kpi-strip{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff;box-shadow:var(--shadow-sm);}
-  .kpi-cell{flex:1;padding:20px 22px;border-right:1px solid var(--line);}
-  .kpi-cell:last-child{border-right:none;}
-  .kpi-cell .num{font-family:var(--font-mono);font-weight:700;font-size:26px;letter-spacing:-0.02em;}
-  .kpi-cell .lbl{font-size:12px;color:var(--ink-dim);margin-top:5px;}
+  .kpi-strip{display:flex;border:2px solid var(--ink);border-radius:14px;overflow:hidden;background:linear-gradient(180deg,#fff,var(--bg-soft));box-shadow:0 6px 24px rgba(20,20,20,0.09);}
+  .kpi-cell{flex:1;padding:22px 22px 20px;border-right:1px solid var(--line);border-top:3px solid var(--accent,var(--ink));position:relative;}
+  .kpi-cell:first-child{border-top-left-radius:12px;}
+  .kpi-cell:last-child{border-right:none;border-top-right-radius:12px;}
+  .kpi-cell .num{font-family:var(--font-mono);font-weight:800;font-size:32px;letter-spacing:-0.02em;line-height:1;}
+  .kpi-cell .lbl{font-size:11.5px;color:var(--ink-dim);margin-top:7px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;}
   .kpi-cell .delta{font-size:11px;margin-top:6px;font-family:var(--font-mono);}
   .kpi-cell .delta.up{color:var(--red);} .kpi-cell .delta.down{color:var(--green);}
 
@@ -148,13 +149,14 @@
     background:#1F4E78;color:#fff;text-align:left;padding:10px 12px;font-size:11.5px;
     text-transform:uppercase;letter-spacing:0.04em;font-weight:600;
   }
+  .data-table th.num{text-align:right;}
   .data-table td{padding:9px 12px;border-bottom:1px solid var(--line);}
   .data-table tr:last-child td{border-bottom:none;}
   .data-table tr:hover td{background:var(--bg-soft);}
   .data-table .num{font-family:var(--font-mono);text-align:right;}
   .databar-cell{position:relative;}
   .databar-cell .bar{
-    position:absolute;left:0;top:0;bottom:0;border-radius:3px;opacity:0.28;z-index:0;
+    position:absolute;left:0;top:50%;transform:translateY(-50%);height:60%;border-radius:3px;opacity:0.28;z-index:0;
   }
   .databar-cell .val{position:relative;z-index:1;font-family:var(--font-mono);font-weight:600;}
   .status-pill{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:100px;text-transform:uppercase;letter-spacing:0.03em;}
@@ -485,7 +487,7 @@ function renderProjectSummaryTable(){
   const maxShortage = Math.max(1, ...rows.map(r => Math.abs(r.shortage)));
   const html = `
     <div class="table-wrap"><table class="data-table">
-      <thead><tr><th>Sr.</th><th>Project</th><th>Required</th><th>Available</th><th>Shortage</th><th>Shortage %</th><th>Status</th><th>Fulfilment %</th></tr></thead>
+      <thead><tr><th>Sr.</th><th>Project</th><th class="num">Required</th><th class="num">Available</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Status</th><th class="num">Fulfilment %</th></tr></thead>
       <tbody>
         ${rows.map((r,i) => `
           <tr>
@@ -518,7 +520,7 @@ function renderTopAttentionTable(){
   }
   el('topAttentionTable').innerHTML = `
     <div class="table-wrap"><table class="data-table">
-      <thead><tr><th>Rank</th><th>Project</th><th>Shortage</th><th>Shortage %</th><th>Status</th></tr></thead>
+      <thead><tr><th>Rank</th><th>Project</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Status</th></tr></thead>
       <tbody>
         ${rows.map((r,i) => `
           <tr>
@@ -541,7 +543,7 @@ function renderTradeTable(scoped){
   const maxShortage = Math.max(1, ...rows.map(r => Math.abs(r.shortage)));
   el('tradeTable').innerHTML = `
     <div class="table-wrap"><table class="data-table">
-      <thead><tr><th>Trade</th><th>Available</th><th>Required</th><th>Shortage</th><th>Shortage %</th><th># Trade Lines Affected</th></tr></thead>
+      <thead><tr><th>Trade</th><th class="num">Available</th><th class="num">Required</th><th class="num">Shortage</th><th class="num">Shortage %</th><th class="num"># Trade Lines Affected</th></tr></thead>
       <tbody>
         ${rows.map(r => `
           <tr>
@@ -568,7 +570,7 @@ function renderContractorWatchlist(){
   const maxShortage = Math.max(1, ...rows.map(r => Math.abs(r.shortage)));
   container.innerHTML = `
     <div class="table-wrap"><table class="data-table">
-      <thead><tr><th>Contractor</th><th>Contact</th><th>Available</th><th>Required</th><th>Shortage</th><th>Shortage %</th><th>Projects Involved</th></tr></thead>
+      <thead><tr><th>Contractor</th><th class="num">Contact</th><th class="num">Available</th><th class="num">Required</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Projects Involved</th></tr></thead>
       <tbody>
         ${rows.map(r => `
           <tr>
@@ -586,7 +588,7 @@ function renderContractorWatchlist(){
   const top5 = rows.slice(0,5);
   callContainer.innerHTML = `
     <div class="table-wrap"><table class="data-table">
-      <thead><tr><th>Rank</th><th>Contractor</th><th>Contact</th><th>Shortage</th><th>Shortage %</th><th>Projects</th></tr></thead>
+      <thead><tr><th>Rank</th><th>Contractor</th><th class="num">Contact</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Projects</th></tr></thead>
       <tbody>
         ${top5.map((r,i) => `
           <tr>
@@ -602,16 +604,21 @@ function renderContractorWatchlist(){
 }
 
 function sparklineSVG(values, color){
-  if(values.length < 2) return '';
-  const w = 200, h = 32, pad = 3;
-  const max = Math.max(...values), min = Math.min(...values);
+  if(values.length < 1) return '';
+  const w = 200, h = 34, pad = 2, gap = 3;
+  const max = Math.max(...values, 0.0001);
+  const min = Math.min(...values, 0);
   const range = (max - min) || 1;
-  const pts = values.map((v,i) => {
-    const x = pad + (i/(values.length-1)) * (w - pad*2);
-    const y = h - pad - ((v-min)/range) * (h - pad*2);
-    return `${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(' ');
-  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const n = values.length;
+  const barW = Math.max(2, (w - pad*2 - gap*(n-1)) / n);
+  const bars = values.map((v,i) => {
+    const x = pad + i * (barW + gap);
+    const barH = Math.max(1.5, ((v-min)/range) * (h - pad*2));
+    const y = h - pad - barH;
+    const isLast = i === n-1;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${barH.toFixed(1)}" rx="1.5" fill="${color}" opacity="${isLast ? 1 : 0.45}"/>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${bars}</svg>`;
 }
 
 function buildLayout(){
@@ -718,12 +725,12 @@ function renderHeroKPIs(scoped){
   }).filter(Boolean).length;
 
   el('kpiStrip').innerHTML = `
-    <div class="kpi-cell"><div class="num">${req.toLocaleString()}</div><div class="lbl">Required — ${fmtDate(latestDate)}</div></div>
-    <div class="kpi-cell"><div class="num">${avail.toLocaleString()}</div><div class="lbl">Available</div></div>
-    <div class="kpi-cell"><div class="num">${shortage.toLocaleString()}</div><div class="lbl">Shortage</div></div>
-    <div class="kpi-cell"><div class="num">${(fulfil*100).toFixed(1)}%</div><div class="lbl">Fulfilment</div></div>
-    <div class="kpi-cell"><div class="num" style="color:${critical>0?'var(--red)':'var(--ink)'}">${critical}</div><div class="lbl">Critical Projects</div></div>
-    <div class="kpi-cell"><div class="num">${PROJECTS.length}</div><div class="lbl">Projects tracked</div></div>
+    <div class="kpi-cell" style="--accent:var(--blue)"><div class="num">${req.toLocaleString()}</div><div class="lbl">Required — ${fmtDate(latestDate)}</div></div>
+    <div class="kpi-cell" style="--accent:var(--green)"><div class="num">${avail.toLocaleString()}</div><div class="lbl">Available</div></div>
+    <div class="kpi-cell" style="--accent:var(--red)"><div class="num">${shortage.toLocaleString()}</div><div class="lbl">Shortage</div></div>
+    <div class="kpi-cell" style="--accent:var(--gold)"><div class="num">${(fulfil*100).toFixed(1)}%</div><div class="lbl">Fulfilment</div></div>
+    <div class="kpi-cell" style="--accent:${critical>0?'var(--red)':'var(--green)'}"><div class="num" style="color:${critical>0?'var(--red)':'var(--ink)'}">${critical}</div><div class="lbl">Critical Projects</div></div>
+    <div class="kpi-cell" style="--accent:var(--ink)"><div class="num">${PROJECTS.length}</div><div class="lbl">Projects tracked</div></div>
   `;
 }
 
@@ -770,12 +777,13 @@ function computeHealth(scoped){
 function renderHealthBlock(scoped){
   const h = computeHealth(scoped);
   const color = h.score >= 75 ? 'var(--green)' : h.score >= 50 ? 'var(--gold)' : 'var(--red)';
+  const scoreColor = (pct) => pct >= 0.75 ? 'var(--green)' : pct >= 0.5 ? 'var(--gold)' : 'var(--red)';
   const metrics = [
-    {label:'Fulfilment rate (today)', pct: h.fulfilToday, color:'var(--red)'},
-    {label:'Weekly momentum', pct: h.momentum, color:'var(--blue)'},
-    {label:'Critical projects control', pct: h.criticalControl, color:'var(--gold)'},
-    {label:'Data freshness', pct: h.freshness, color:'var(--green)'},
-    {label:'Trade coverage', pct: h.coverage, color:'var(--blue)'},
+    {label:'Fulfilment rate (today)', pct: h.fulfilToday},
+    {label:'Weekly momentum', pct: h.momentum},
+    {label:'Critical projects control', pct: h.criticalControl},
+    {label:'Data freshness', pct: h.freshness},
+    {label:'Trade coverage', pct: h.coverage},
   ];
   el('healthCard').innerHTML = `
     <div class="gauge-wrap">
@@ -791,7 +799,7 @@ function renderHealthBlock(scoped){
       ${metrics.map(m => `
         <div class="metric-row">
           <div class="m-label">${m.label}</div>
-          <div class="m-track"><div class="m-fill" style="width:${Math.round(m.pct*100)}%;background:${m.color}"></div></div>
+          <div class="m-track"><div class="m-fill" style="width:${Math.round(m.pct*100)}%;background:${scoreColor(m.pct)}"></div></div>
           <div class="m-val">${Math.round(m.pct*100)}</div>
         </div>
       `).join('')}
@@ -874,7 +882,7 @@ function renderDonut(scoped){
   PROJECTS.forEach(p => byProject[p] = 0);
   todayRows.forEach(r => { if(byProject[r.project] !== undefined) byProject[r.project] += (r.required - r.available); });
   const entries = Object.entries(byProject).filter(([,v]) => v > 0).sort((a,b)=>b[1]-a[1]).slice(0,8);
-  const palette = ['#e0333f','#2f5fdb','#c9971f','#1f9d55','#8b5cf6','#ec4899','#0ea5e9','#f97316'];
+  const palette = ['#7a1620','#a32330','#c72a35','#e0333f','#e8636c','#ee8b91','#f4b0b4','#f9d5d7'];
 
   if(!entries.length){
     el('donutChart').parentElement.innerHTML = '<p class="empty">No shortage today — nothing to break down.</p>';
