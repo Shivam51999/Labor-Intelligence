@@ -141,6 +141,32 @@
   .error-box code{display:block;margin-top:10px;font-family:var(--font-mono);font-size:11px;color:var(--ink-dim);word-break:break-all;}
 
   footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);color:var(--ink-faint);font-size:11px;text-align:center;font-family:var(--font-mono);}
+
+  /* ---------- Data tables (spreadsheet-style reports) ---------- */
+  .data-table{width:100%;border-collapse:collapse;font-size:13px;}
+  .data-table th{
+    background:#1F4E78;color:#fff;text-align:left;padding:10px 12px;font-size:11.5px;
+    text-transform:uppercase;letter-spacing:0.04em;font-weight:600;
+  }
+  .data-table td{padding:9px 12px;border-bottom:1px solid var(--line);}
+  .data-table tr:last-child td{border-bottom:none;}
+  .data-table tr:hover td{background:var(--bg-soft);}
+  .data-table .num{font-family:var(--font-mono);text-align:right;}
+  .databar-cell{position:relative;}
+  .databar-cell .bar{
+    position:absolute;left:0;top:0;bottom:0;border-radius:3px;opacity:0.28;z-index:0;
+  }
+  .databar-cell .val{position:relative;z-index:1;font-family:var(--font-mono);font-weight:600;}
+  .status-pill{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:100px;text-transform:uppercase;letter-spacing:0.03em;}
+  .status-pill.critical{background:var(--red-soft);color:var(--red);}
+  .status-pill.moderate{background:var(--gold-soft);color:var(--gold);}
+  .status-pill.low{background:#eef4ff;color:var(--blue);}
+  .status-pill.ok{background:var(--green-soft);color:var(--green);}
+  .table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--line);}
+  .table-wrap table{margin:0;}
+  .highlight-box{border:1.5px dashed var(--red);border-radius:12px;background:var(--red-soft);padding:4px;margin-bottom:16px;}
+  .highlight-box .table-wrap{border:none;border-radius:8px;}
+  .highlight-title{display:flex;align-items:center;gap:8px;padding:14px 16px 6px;font-family:var(--font-head);font-weight:700;font-size:14px;color:var(--red);}
 </style>
 </head>
 <body>
@@ -305,6 +331,8 @@ function processRows(rows, headers){
   const colTrade = findCol(headers, ["trade"]);
   const colReq = findCol(headers, ["required"]);
   const colAvail = findCol(headers, ["available"]);
+  const colContractor = findCol(headers, ["contractor"]);
+  const colContact = findCol(headers, ["contact"]);
 
   if(!colProject || !colDate || !colReq || !colAvail){
     showError({message: "Expected columns (Project, Date, Required, Available) weren't all found. Found: " + headers.join(", ")});
@@ -322,6 +350,8 @@ function processRows(rows, headers){
       project: proj,
       tower: colTower ? (row[colTower]||"").trim() : "",
       trade: colTrade ? (row[colTrade]||"").trim() : "",
+      contractor: colContractor ? (row[colContractor]||"").trim() : "",
+      contact: colContact ? (row[colContact]||"").trim() : "",
       date: d, dateKey: dayKey(d),
       required: req, available: avail, shortage: req - avail
     });
@@ -387,6 +417,190 @@ function groupDaily(rows){
   return [...map.values()].sort((a,b) => a.date - b.date);
 }
 
+function dataBarCell(value, max, color){
+  const pct = max > 0 ? Math.min(100, Math.abs(value)/max*100) : 0;
+  return `<td class="num databar-cell"><div class="bar" style="width:${pct}%;background:${color};"></div><span class="val">${value.toLocaleString()}</span></td>`;
+}
+
+function statusPill(pct){
+  if(pct <= 0) return '<span class="status-pill ok">Surplus/On Track</span>';
+  if(pct > 0.3) return '<span class="status-pill critical">Critical</span>';
+  if(pct > 0.15) return '<span class="status-pill moderate">Moderate</span>';
+  return '<span class="status-pill low">Low</span>';
+}
+
+function computeProjectSummary(){
+  return PROJECTS.map(p => {
+    const rows = RAW.filter(r => r.project === p);
+    const {latestDate, todayRows} = latestRowsFor(rows);
+    const req = todayRows.reduce((a,r)=>a+r.required,0);
+    const avail = todayRows.reduce((a,r)=>a+r.available,0);
+    const shortage = req - avail;
+    const pct = req ? shortage/req : 0;
+    return {project:p, required:req, available:avail, shortage, pct, fulfil: req ? avail/req : 1, latestDate};
+  }).sort((a,b) => b.pct - a.pct);
+}
+
+function computeTradeSummary(scoped){
+  const {latestDate} = latestRowsFor(scoped);
+  const todayKey = dayKey(latestDate);
+  const todayRows = scoped.filter(r => r.dateKey === todayKey && r.trade);
+  const byTrade = {};
+  todayRows.forEach(r => {
+    if(!byTrade[r.trade]) byTrade[r.trade] = {required:0, available:0, lines:0};
+    byTrade[r.trade].required += r.required;
+    byTrade[r.trade].available += r.available;
+    byTrade[r.trade].lines += 1;
+  });
+  return Object.entries(byTrade).map(([trade,v]) => ({
+    trade, required:v.required, available:v.available,
+    shortage: v.required-v.available,
+    pct: v.required ? (v.required-v.available)/v.required : 0,
+    lines: v.lines
+  })).sort((a,b) => b.shortage - a.shortage);
+}
+
+function computeContractorSummary(){
+  const byContractor = {};
+  RAW.filter(r => r.contractor).forEach(r => {
+    if(!byContractor[r.contractor]) byContractor[r.contractor] = {contact:'', required:0, available:0, projects:new Set()};
+    const {latestDate} = latestRowsFor(RAW.filter(x => x.project === r.project));
+    if(r.dateKey === dayKey(latestDate)){
+      byContractor[r.contractor].required += r.required;
+      byContractor[r.contractor].available += r.available;
+    }
+    if(r.contact) byContractor[r.contractor].contact = r.contact;
+    byContractor[r.contractor].projects.add(r.project);
+  });
+  return Object.entries(byContractor).map(([name,v]) => ({
+    name, contact:v.contact, required:v.required, available:v.available,
+    shortage: v.required-v.available,
+    pct: v.required ? (v.required-v.available)/v.required : 0,
+    projects: [...v.projects].join(", ")
+  })).filter(c => c.shortage > 0).sort((a,b) => b.pct - a.pct);
+}
+
+function renderProjectSummaryTable(){
+  const rows = computeProjectSummary();
+  const maxShortage = Math.max(1, ...rows.map(r => Math.abs(r.shortage)));
+  const html = `
+    <div class="table-wrap"><table class="data-table">
+      <thead><tr><th>Sr.</th><th>Project</th><th>Required</th><th>Available</th><th>Shortage</th><th>Shortage %</th><th>Status</th><th>Fulfilment %</th></tr></thead>
+      <tbody>
+        ${rows.map((r,i) => `
+          <tr>
+            <td>${i+1}</td>
+            <td><b>${r.project}</b></td>
+            <td class="num">${r.required.toLocaleString()}</td>
+            <td class="num">${r.available.toLocaleString()}</td>
+            ${dataBarCell(r.shortage, maxShortage, r.shortage>0?'#e0333f':'#1f9d55')}
+            <td class="num">${(r.pct*100).toFixed(1)}%</td>
+            <td>${statusPill(r.pct)}</td>
+            <td class="num">${(r.fulfil*100).toFixed(1)}%</td>
+          </tr>`).join('')}
+        <tr style="background:var(--bg-soft-2);font-weight:700;">
+          <td></td><td>TOTAL</td>
+          <td class="num">${rows.reduce((a,r)=>a+r.required,0).toLocaleString()}</td>
+          <td class="num">${rows.reduce((a,r)=>a+r.available,0).toLocaleString()}</td>
+          <td class="num">${rows.reduce((a,r)=>a+r.shortage,0).toLocaleString()}</td>
+          <td colspan="3"></td>
+        </tr>
+      </tbody>
+    </table></div>`;
+  el('projectSummaryTable').innerHTML = html;
+}
+
+function renderTopAttentionTable(){
+  const rows = computeProjectSummary().filter(r => r.pct > 0).slice(0, 5);
+  if(!rows.length){
+    el('topAttentionTable').innerHTML = '<div class="empty">No projects currently short — nothing needs immediate attention.</div>';
+    return;
+  }
+  el('topAttentionTable').innerHTML = `
+    <div class="table-wrap"><table class="data-table">
+      <thead><tr><th>Rank</th><th>Project</th><th>Shortage</th><th>Shortage %</th><th>Status</th></tr></thead>
+      <tbody>
+        ${rows.map((r,i) => `
+          <tr>
+            <td>${i+1}</td>
+            <td><b>${r.project}</b></td>
+            <td class="num">${r.shortage.toLocaleString()}</td>
+            <td class="num">${(r.pct*100).toFixed(1)}%</td>
+            <td>${statusPill(r.pct)}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+}
+
+function renderTradeTable(scoped){
+  const rows = computeTradeSummary(scoped);
+  if(!rows.length){
+    el('tradeTable').innerHTML = '<div class="empty">No Trade column data available for this scope.</div>';
+    return;
+  }
+  const maxShortage = Math.max(1, ...rows.map(r => Math.abs(r.shortage)));
+  el('tradeTable').innerHTML = `
+    <div class="table-wrap"><table class="data-table">
+      <thead><tr><th>Trade</th><th>Available</th><th>Required</th><th>Shortage</th><th>Shortage %</th><th># Trade Lines Affected</th></tr></thead>
+      <tbody>
+        ${rows.map(r => `
+          <tr>
+            <td><b>${r.trade}</b></td>
+            <td class="num">${r.available.toLocaleString()}</td>
+            <td class="num">${r.required.toLocaleString()}</td>
+            ${dataBarCell(r.shortage, maxShortage, r.shortage>0?'#e0333f':'#1f9d55')}
+            <td class="num">${(r.pct*100).toFixed(1)}%</td>
+            <td class="num">${r.lines}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+}
+
+function renderContractorWatchlist(){
+  const rows = computeContractorSummary();
+  const container = el('contractorWatchlist');
+  const callContainer = el('topContractorsCall');
+  if(!rows.length){
+    container.innerHTML = '<div class="empty">No contractor data yet — Contractor column is empty in Master Raw. Once PMs start selecting contractors, this fills in automatically.</div>';
+    callContainer.innerHTML = '';
+    return;
+  }
+  const maxShortage = Math.max(1, ...rows.map(r => Math.abs(r.shortage)));
+  container.innerHTML = `
+    <div class="table-wrap"><table class="data-table">
+      <thead><tr><th>Contractor</th><th>Contact</th><th>Available</th><th>Required</th><th>Shortage</th><th>Shortage %</th><th>Projects Involved</th></tr></thead>
+      <tbody>
+        ${rows.map(r => `
+          <tr>
+            <td><b>${r.name}</b></td>
+            <td class="num">${r.contact||'—'}</td>
+            <td class="num">${r.available.toLocaleString()}</td>
+            <td class="num">${r.required.toLocaleString()}</td>
+            ${dataBarCell(r.shortage, maxShortage, '#e0333f')}
+            <td class="num">${(r.pct*100).toFixed(1)}%</td>
+            <td>${r.projects}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+
+  const top5 = rows.slice(0,5);
+  callContainer.innerHTML = `
+    <div class="table-wrap"><table class="data-table">
+      <thead><tr><th>Rank</th><th>Contractor</th><th>Contact</th><th>Shortage</th><th>Shortage %</th><th>Projects</th></tr></thead>
+      <tbody>
+        ${top5.map((r,i) => `
+          <tr>
+            <td>${i+1}</td>
+            <td><b>${r.name}</b></td>
+            <td class="num">${r.contact||'—'}</td>
+            <td class="num">${r.shortage.toLocaleString()}</td>
+            <td class="num">${(r.pct*100).toFixed(1)}%</td>
+            <td>${r.projects}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+}
+
 function sparklineSVG(values, color){
   if(values.length < 2) return '';
   const w = 200, h = 32, pad = 3;
@@ -398,21 +612,6 @@ function sparklineSVG(values, color){
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   }).join(' ');
   return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-}
-
-function render(){
-  const scope = el('projectFilter').value;
-  const horizon = parseInt(el('horizonFilter').value, 10);
-  const scoped = scope === "__all__" ? RAW : RAW.filter(r => r.project === scope);
-
-  el('content').innerHTML = buildLayout();
-  renderHeroKPIs(scoped);
-  renderHealthBlock(scoped);
-  renderStatCards(scoped);
-  renderTrendChart(scoped, horizon);
-  renderDonut(scoped);
-  renderRiskCards();
-  renderTradeChart(scoped);
 }
 
 function buildLayout(){
@@ -442,16 +641,58 @@ function buildLayout(){
       </div>
     </div>
 
-    <div class="section-head"><div class="tag">Projects at Risk</div><div class="synced" id="riskSynced"></div></div>
+    <div class="section-head"><div class="tag">Top 5 Projects Needing Immediate Attention</div></div>
+    <div class="highlight-box">
+      <div class="highlight-title">⚠ Call these projects first</div>
+      <div id="topAttentionTable"></div>
+    </div>
+
+    <div class="section-head"><div class="tag">Labour Shortage — Project Summary</div><div class="synced">All projects, today</div></div>
+    <div id="projectSummaryTable"></div>
+
+    <div class="section-head"><div class="tag">Projects at Risk (Trend)</div><div class="synced" id="riskSynced"></div></div>
     <div class="risk-grid" id="riskGrid"></div>
 
-    <div class="section-head"><div class="tag">Trade Shortages</div></div>
-    <div class="panel">
-      <h2>Top Trade Shortages</h2>
-      <p class="desc">Scoped to current filter, today's snapshot.</p>
-      <div class="chart-box"><canvas id="tradeChart"></canvas></div>
+    <div class="section-head"><div class="tag">Labour Shortage by Trade / Skill</div></div>
+    <div class="chart-grid">
+      <div class="panel">
+        <h2>Top Trade Shortages (Chart)</h2>
+        <p class="desc">Scoped to current filter, today's snapshot.</p>
+        <div class="chart-box"><canvas id="tradeChart"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2>Trade Shortage Table</h2>
+        <p class="desc">Use this to prioritise hiring or subcontracting company-wide.</p>
+        <div id="tradeTable"></div>
+      </div>
     </div>
+
+    <div class="section-head"><div class="tag">Contractor Watchlist</div><div class="synced">Who is short on manpower</div></div>
+    <div class="highlight-box">
+      <div class="highlight-title">📞 Top 5 contractors to call today</div>
+      <div id="topContractorsCall"></div>
+    </div>
+    <div id="contractorWatchlist"></div>
   `;
+}
+
+function render(){
+  const scope = el('projectFilter').value;
+  const horizon = parseInt(el('horizonFilter').value, 10);
+  const scoped = scope === "__all__" ? RAW : RAW.filter(r => r.project === scope);
+
+  el('content').innerHTML = buildLayout();
+  renderHeroKPIs(scoped);
+  renderHealthBlock(scoped);
+  renderStatCards(scoped);
+  renderTrendChart(scoped, horizon);
+  renderDonut(scoped);
+  renderTopAttentionTable();
+  renderProjectSummaryTable();
+  renderRiskCards();
+  renderTradeChart(scoped);
+  renderTradeTable(scoped);
+  renderContractorWatchlist();
 }
 
 function destroyChart(id){ if(charts[id]){ charts[id].destroy(); delete charts[id]; } }
@@ -469,11 +710,19 @@ function renderHeroKPIs(scoped){
   const shortage = req - avail;
   const fulfil = req ? avail/req : 0;
 
+  const critical = PROJECTS.map(p => {
+    const rows = RAW.filter(r => r.project === p);
+    const {todayRows: tr} = latestRowsFor(rows);
+    const r = tr.reduce((a,x)=>a+x.required,0), a = tr.reduce((a,x)=>a+x.available,0);
+    return r ? (r-a)/r > 0.3 : false;
+  }).filter(Boolean).length;
+
   el('kpiStrip').innerHTML = `
     <div class="kpi-cell"><div class="num">${req.toLocaleString()}</div><div class="lbl">Required — ${fmtDate(latestDate)}</div></div>
     <div class="kpi-cell"><div class="num">${avail.toLocaleString()}</div><div class="lbl">Available</div></div>
     <div class="kpi-cell"><div class="num">${shortage.toLocaleString()}</div><div class="lbl">Shortage</div></div>
     <div class="kpi-cell"><div class="num">${(fulfil*100).toFixed(1)}%</div><div class="lbl">Fulfilment</div></div>
+    <div class="kpi-cell"><div class="num" style="color:${critical>0?'var(--red)':'var(--ink)'}">${critical}</div><div class="lbl">Critical Projects</div></div>
     <div class="kpi-cell"><div class="num">${PROJECTS.length}</div><div class="lbl">Projects tracked</div></div>
   `;
 }
