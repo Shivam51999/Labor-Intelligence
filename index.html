@@ -145,7 +145,10 @@
 </div>
 
 <script>
-const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnCnqIrNawDH0U_JdOhgN0e60eEV1yKMDs83u6Rd_1glW1Ft-FYAIJ4r9Wpq7UMxumE1GUlMeUuGz_/pub?gid=1337963502&single=true&output=csv";
+// Primary source: same-origin serverless proxy (avoids CORS entirely).
+// Fallback: direct Google URL, in case the proxy isn't deployed yet.
+const PROXY_URL = "/api/csv-proxy";
+const DIRECT_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTnCnqIrNawDH0U_JdOhgN0e60eEV1yKMDs83u6Rd_1glW1Ft-FYAIJ4r9Wpq7UMxumE1GUlMeUuGz_/pub?gid=1337963502&single=true&output=csv";
 
 let RAW = [];         // parsed + cleaned rows
 let PROJECTS = [];    // unique project names found
@@ -197,18 +200,63 @@ function findCol(headers, candidates){
 
 function loadData(){
   el('spinner').classList.add('on');
-  setStatus('Fetching Master Raw log via published CSV…');
-  fetch(CSV_URL, {cache:"no-store"})
-    .then(r => { if(!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+  setStatus('Fetching Master Raw log…');
+  fetch(PROXY_URL, {cache:"no-store"})
+    .then(r => { if(!r.ok) throw new Error("Proxy HTTP " + r.status); return r.text(); })
     .then(text => {
-      const parsed = Papa.parse(text, {header:true, skipEmptyLines:true});
-      if(!parsed.data.length) throw new Error("CSV returned no rows.");
-      processRows(parsed.data, parsed.meta.fields || []);
+      if(!text || !text.trim()) throw new Error("Proxy returned empty response — falling back to direct link.");
+      const {rows, headers} = parseCsvSkippingPreamble(text);
+      if(!rows.length) throw new Error("Proxy CSV had no data rows — falling back to direct link.");
+      processRows(rows, headers);
     })
-    .catch(err => {
-      showError(err);
+    .catch(proxyErr => {
+      console.warn("Proxy fetch failed, trying direct Google link:", proxyErr);
+      return fetch(DIRECT_CSV_URL, {cache:"no-store"})
+        .then(r => { if(!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+        .then(text => {
+          const {rows, headers} = parseCsvSkippingPreamble(text);
+          if(!rows.length) throw new Error("CSV returned no rows.");
+          processRows(rows, headers);
+        })
+        .catch(err => showError(err));
     })
     .finally(() => el('spinner').classList.remove('on'));
+}
+
+/**
+ * Master Raw has a title row and a description row ABOVE the real header
+ * row (Project, Tower, Date, Activity, Trade, ...). Papa.parse with
+ * header:true would wrongly treat row 1 (the title text) as headers.
+ * This scans the first ~10 raw rows for the one that actually looks like
+ * a header row (contains a cell matching "project"), then re-parses from
+ * there using that row as the header.
+ */
+function parseCsvSkippingPreamble(text){
+  const raw = Papa.parse(text, {header:false, skipEmptyLines:false});
+  const allRows = raw.data;
+  let headerRowIdx = -1;
+  for(let i=0; i<Math.min(10, allRows.length); i++){
+    const row = allRows[i].map(c => String(c||"").trim().toLowerCase());
+    if(row.includes("project") && (row.includes("date") || row.includes("required"))){
+      headerRowIdx = i;
+      break;
+    }
+  }
+  if(headerRowIdx === -1){
+    // Fallback: assume Papa's own header:true guess (row 0) — processRows()
+    // will report a clear "columns not found" error if this is also wrong.
+    const fallback = Papa.parse(text, {header:true, skipEmptyLines:true});
+    return {rows: fallback.data, headers: fallback.meta.fields || []};
+  }
+  const headers = allRows[headerRowIdx].map(h => String(h||"").trim());
+  const dataRows = allRows.slice(headerRowIdx + 1)
+    .filter(r => r.some(c => String(c||"").trim() !== ""))
+    .map(r => {
+      const obj = {};
+      headers.forEach((h, i) => obj[h] = r[i]);
+      return obj;
+    });
+  return {rows: dataRows, headers};
 }
 
 function showError(err){
@@ -221,7 +269,8 @@ function showError(err){
       one tab per CSV link, not the whole workbook. (2) The publish setting isn't set to
       "automatically republish when changed" — if off, re-publish after edits. (3) The sheet has
       columns named Project, Date, Required, Available (Tower / Trade optional but recommended).
-      <code>${CSV_URL}</code>
+      (4) If you've deployed api/csv-proxy.js on Vercel, check its logs for the upstream status code.
+      <code>Proxy: /api/csv-proxy · Direct fallback: ${DIRECT_CSV_URL}</code>
     </div>`;
   setStatus('Failed to load data.');
   el('freshDot').classList.add('stale');
