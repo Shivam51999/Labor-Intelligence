@@ -629,6 +629,8 @@ function buildLayout(){
     <div class="section-head"><div class="tag">Today's Numbers</div></div>
     <div class="stat-grid" id="statGrid"></div>
 
+    <div id="towerSection"></div>
+
     <div class="section-head"><div class="tag">Trend & Forecast</div></div>
     <div class="chart-grid">
       <div class="panel">
@@ -683,6 +685,67 @@ function buildLayout(){
   `;
 }
 
+function computeTowerSummary(scoped){
+  const {latestDate} = latestRowsFor(scoped);
+  const todayKey = dayKey(latestDate);
+  const todayRows = scoped.filter(r => r.dateKey === todayKey && r.tower);
+  const byTower = {};
+  todayRows.forEach(r => {
+    if(!byTower[r.tower]) byTower[r.tower] = {required:0, available:0};
+    byTower[r.tower].required += r.required;
+    byTower[r.tower].available += r.available;
+  });
+  return Object.entries(byTower).map(([tower,v]) => ({
+    tower, required:v.required, available:v.available,
+    shortage: v.required-v.available,
+    pct: v.required ? (v.required-v.available)/v.required : 0
+  })).sort((a,b) => b.pct - a.pct);
+}
+
+function renderTowerSection(scope, scoped){
+  const container = el('towerSection');
+  if(scope === "__all__"){
+    container.innerHTML = `
+      <div class="section-head"><div class="tag">Tower Level</div></div>
+      <div class="empty" style="border:1px dashed var(--line);border-radius:10px;">Select a project above to see its tower-by-tower breakdown.</div>
+    `;
+    return;
+  }
+  const rows = computeTowerSummary(scoped);
+  if(!rows.length){
+    container.innerHTML = `
+      <div class="section-head"><div class="tag">Tower Level — ${scope}</div></div>
+      <div class="empty">No tower data logged yet for this project.</div>
+    `;
+    return;
+  }
+  const maxShortage = Math.max(1, ...rows.map(r => Math.abs(r.shortage)));
+  container.innerHTML = `
+    <div class="section-head"><div class="tag">Tower Level — ${scope}</div><div class="synced">${rows.length} towers, today's snapshot</div></div>
+    <div class="table-wrap"><table class="data-table">
+      <thead><tr><th>Tower</th><th class="num">Required</th><th class="num">Available</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Status</th></tr></thead>
+      <tbody>
+        ${rows.map(r => `
+          <tr>
+            <td><b>${r.tower}</b></td>
+            <td class="num">${r.required.toLocaleString()}</td>
+            <td class="num">${r.available.toLocaleString()}</td>
+            ${dataBarCell(r.shortage, maxShortage, r.shortage>0?'#e0333f':'#1f9d55')}
+            <td class="num">${(r.pct*100).toFixed(1)}%</td>
+            <td>${statusPill(r.pct)}</td>
+          </tr>`).join('')}
+        <tr style="background:var(--bg-soft-2);font-weight:700;">
+          <td>TOTAL</td>
+          <td class="num">${rows.reduce((a,r)=>a+r.required,0).toLocaleString()}</td>
+          <td class="num">${rows.reduce((a,r)=>a+r.available,0).toLocaleString()}</td>
+          <td class="num">${rows.reduce((a,r)=>a+r.shortage,0).toLocaleString()}</td>
+          <td colspan="2"></td>
+        </tr>
+      </tbody>
+    </table></div>
+  `;
+}
+
 function render(){
   const scope = el('projectFilter').value;
   const horizon = parseInt(el('horizonFilter').value, 10);
@@ -692,6 +755,7 @@ function render(){
   renderHeroKPIs(scoped);
   renderHealthBlock(scoped);
   renderStatCards(scoped);
+  renderTowerSection(scope, scoped);
   renderTrendChart(scoped, horizon);
   renderDonut(scoped);
   renderTopAttentionTable();
