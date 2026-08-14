@@ -29,6 +29,20 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Vercel's default body parser treats a text/plain request body as a
+    // raw STRING, not a parsed object (only application/json gets
+    // auto-parsed) — but the frontend deliberately sends text/plain to
+    // avoid a CORS preflight. So req.body here is the literal JSON text,
+    // not an object yet. Parse it ourselves before re-sending, otherwise
+    // JSON.stringify(req.body) below would double-encode it into a JSON
+    // string-of-a-string, which Apps Script parses back into a plain
+    // string (not an object) — body.action becomes undefined, and every
+    // call silently falls through to the "unknown action" branch.
+    let payload = req.body;
+    if (typeof payload === "string") {
+      try { payload = JSON.parse(payload); } catch (e) { /* leave as-is if truly not JSON */ }
+    }
+
     // Apps Script Web Apps respond to every request with a redirect to a
     // temporary googleusercontent.com URL that holds the already-computed
     // result (doPost() has ALREADY run by this point). If we let fetch
@@ -39,7 +53,7 @@ export default async function handler(req, res) {
     let upstream = await fetch(APPS_SCRIPT_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(req.body),
+      body: JSON.stringify(payload),
       redirect: "manual",
     });
 
