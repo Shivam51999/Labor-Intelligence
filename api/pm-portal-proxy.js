@@ -29,13 +29,13 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Apps Script Web Apps respond to every request with a redirect to an
-    // internal googleusercontent.com URL before returning the real result.
-    // If we let fetch auto-follow that redirect, the WHATWG spec silently
-    // converts our POST into a GET and drops the body — which means
-    // Apps Script's doGet() runs instead of doPost(), returning the wrong
-    // response shape entirely. So we follow the redirect ourselves,
-    // manually, as a POST, to keep the body intact.
+    // Apps Script Web Apps respond to every request with a redirect to a
+    // temporary googleusercontent.com URL that holds the already-computed
+    // result (doPost() has ALREADY run by this point). If we let fetch
+    // auto-follow that redirect, the WHATWG spec silently converts our POST
+    // into a GET — usually harmless here since it's just fetching a static
+    // result, but auto-follow was returning an HTML page in practice, so we
+    // handle it explicitly: capture the redirect, then GET the result URL.
     let upstream = await fetch(APPS_SCRIPT_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -43,7 +43,9 @@ export default async function handler(req, res) {
       redirect: "manual",
     });
 
-    // A 302/303 here is expected — follow it ourselves as a POST.
+    // A 302/303 here is expected — Apps Script has ALREADY run doPost() by
+    // this point; the redirect target is just a static URL holding the
+    // already-computed result, so we fetch it with GET, not another POST.
     if (upstream.status >= 300 && upstream.status < 400) {
       const location = upstream.headers.get("location");
       if (!location) {
@@ -51,9 +53,7 @@ export default async function handler(req, res) {
         return;
       }
       upstream = await fetch(location, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(req.body),
+        method: "GET",
         redirect: "follow",
       });
     }
