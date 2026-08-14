@@ -29,12 +29,34 @@ export default async function handler(req, res) {
   }
 
   try {
-    const upstream = await fetch(APPS_SCRIPT_URL, {
+    // Apps Script Web Apps respond to every request with a redirect to an
+    // internal googleusercontent.com URL before returning the real result.
+    // If we let fetch auto-follow that redirect, the WHATWG spec silently
+    // converts our POST into a GET and drops the body — which means
+    // Apps Script's doGet() runs instead of doPost(), returning the wrong
+    // response shape entirely. So we follow the redirect ourselves,
+    // manually, as a POST, to keep the body intact.
+    let upstream = await fetch(APPS_SCRIPT_URL, {
       method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" }, // avoids a CORS preflight on OUR side of the relay too
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
       body: JSON.stringify(req.body),
-      redirect: "follow", // Apps Script Web Apps issue a redirect before returning the real response
+      redirect: "manual",
     });
+
+    // A 302/303 here is expected — follow it ourselves as a POST.
+    if (upstream.status >= 300 && upstream.status < 400) {
+      const location = upstream.headers.get("location");
+      if (!location) {
+        res.status(502).json({success: false, message: "Redirect from Apps Script had no Location header."});
+        return;
+      }
+      upstream = await fetch(location, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(req.body),
+        redirect: "follow",
+      });
+    }
 
     const text = await upstream.text();
     res.setHeader("Content-Type", "application/json");
