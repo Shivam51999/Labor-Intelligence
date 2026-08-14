@@ -6,7 +6,7 @@
 // Deploy: drop this file at api/csv-proxy.js in your Vercel project.
 // The dashboard should then fetch "/api/csv-proxy" instead of the Google URL directly.
 
-const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRaTMMYz9tevz4FJkN5rpdfb5UD955CBW-j_dwyHNZ4rTZUHljBRsVTL7U1JVtQh9p_EsBxvfU56RBd/pub?gid=808917304&single=true&output=csv";
+const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRaTMMYz9tevz4FJkN5rpdfb5UD955CBW-j_dwyHNZ4rTZUHljBRsVTL7U1JVtQh9p_EsBxvfU56RBd/pub?gid=2060819675&single=true&output=csv";
 
 export default async function handler(req, res) {
   try {
