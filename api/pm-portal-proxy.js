@@ -5,7 +5,7 @@
 // preflight requests reliably when called directly from a browser on a
 // different domain. Same pattern as api/csv-proxy.js for the CEO dashboard.
 
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzmYg8RBi7t3dKIxp66Nh8Zd1NOqgMKeH5V57SRgjPYIY9SsSXIeZ9wHEF6R8vl3Phalg/exec";
+const APPS_SCRIPT_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRaTMMYz9tevz4FJkN5rpdfb5UD955CBW-j_dwyHNZ4rTZUHljBRsVTL7U1JVtQh9p_EsBxvfU56RBd/pub?gid=1716367919&single=true&output=csv";
 // Looks like: https://script.google.com/macros/s/AKfycb.../exec
 
 export default async function handler(req, res) {
