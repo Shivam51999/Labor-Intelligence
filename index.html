@@ -433,8 +433,9 @@ function statusPill(pct){
   return '<span class="status-pill low">Low</span>';
 }
 
-function computeProjectSummary(){
-  return PROJECTS.map(p => {
+function computeProjectSummary(scope){
+  const list = scope === "__all__" ? PROJECTS : [scope];
+  return list.map(p => {
     const rows = RAW.filter(r => r.project === p);
     const {latestDate, todayRows} = latestRowsFor(rows);
     const req = todayRows.reduce((a,r)=>a+r.required,0);
@@ -464,15 +465,14 @@ function computeTradeSummary(scoped){
   })).sort((a,b) => b.shortage - a.shortage);
 }
 
-function computeContractorSummary(){
+function computeContractorSummary(scoped){
+  const {latestDate} = latestRowsFor(scoped);
+  const todayKey = dayKey(latestDate);
   const byContractor = {};
-  RAW.filter(r => r.contractor).forEach(r => {
+  scoped.filter(r => r.contractor && r.dateKey === todayKey).forEach(r => {
     if(!byContractor[r.contractor]) byContractor[r.contractor] = {contact:'', required:0, available:0, projects:new Set()};
-    const {latestDate} = latestRowsFor(RAW.filter(x => x.project === r.project));
-    if(r.dateKey === dayKey(latestDate)){
-      byContractor[r.contractor].required += r.required;
-      byContractor[r.contractor].available += r.available;
-    }
+    byContractor[r.contractor].required += r.required;
+    byContractor[r.contractor].available += r.available;
     if(r.contact) byContractor[r.contractor].contact = r.contact;
     byContractor[r.contractor].projects.add(r.project);
   });
@@ -484,8 +484,8 @@ function computeContractorSummary(){
   })).filter(c => c.shortage > 0).sort((a,b) => b.pct - a.pct);
 }
 
-function renderProjectSummaryTable(){
-  const rows = computeProjectSummary();
+function renderProjectSummaryTable(scope){
+  const rows = computeProjectSummary(scope);
   const maxShortage = Math.max(1, ...rows.map(r => Math.abs(r.shortage)));
   const html = `
     <div class="table-wrap"><table class="data-table">
@@ -514,8 +514,8 @@ function renderProjectSummaryTable(){
   el('projectSummaryTable').innerHTML = html;
 }
 
-function renderTopAttentionTable(){
-  const rows = computeProjectSummary().filter(r => r.pct > 0).slice(0, 5);
+function renderTopAttentionTable(scope){
+  const rows = computeProjectSummary(scope).filter(r => r.pct > 0).slice(0, 5);
   if(!rows.length){
     el('topAttentionTable').innerHTML = '<div class="empty">No projects currently short — nothing needs immediate attention.</div>';
     return;
@@ -560,8 +560,8 @@ function renderTradeTable(scoped){
     </table></div>`;
 }
 
-function renderContractorWatchlist(){
-  const rows = computeContractorSummary();
+function renderContractorWatchlist(scoped){
+  const rows = computeContractorSummary(scoped);
   const container = el('contractorWatchlist');
   const callContainer = el('topContractorsCall');
   if(!rows.length){
@@ -646,8 +646,8 @@ function buildLayout(){
         </div>
       </div>
       <div class="panel">
-        <h2>Shortage Share by Project</h2>
-        <p class="desc">Where today's gap is concentrated.</p>
+        <h2 id="donutTitle">Shortage Share by Project</h2>
+        <p class="desc" id="donutDesc">Where today's gap is concentrated.</p>
         <div class="chart-box"><canvas id="donutChart"></canvas></div>
       </div>
     </div>
@@ -759,13 +759,13 @@ function render(){
   renderStatCards(scoped);
   renderTowerSection(scope, scoped);
   renderTrendChart(scoped, horizon);
-  renderDonut(scoped);
-  renderTopAttentionTable();
-  renderProjectSummaryTable();
-  renderRiskCards();
+  renderDonut(scope, scoped);
+  renderTopAttentionTable(scope);
+  renderProjectSummaryTable(scope);
+  renderRiskCards(scope);
   renderTradeChart(scoped);
   renderTradeTable(scoped);
-  renderContractorWatchlist();
+  renderContractorWatchlist(scoped);
 }
 
 function destroyChart(id){ if(charts[id]){ charts[id].destroy(); delete charts[id]; } }
@@ -941,13 +941,23 @@ function renderTrendChart(scoped, horizon){
   });
 }
 
-function renderDonut(scoped){
+function renderDonut(scope, scoped){
   destroyChart('donutChart');
-  const {todayRows} = latestRowsFor(RAW);
-  const byProject = {};
-  PROJECTS.forEach(p => byProject[p] = 0);
-  todayRows.forEach(r => { if(byProject[r.project] !== undefined) byProject[r.project] += (r.required - r.available); });
-  const entries = Object.entries(byProject).filter(([,v]) => v > 0).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const {todayRows} = latestRowsFor(scoped);
+  let entries;
+  if(scope === "__all__"){
+    const byProject = {};
+    PROJECTS.forEach(p => byProject[p] = 0);
+    todayRows.forEach(r => { if(byProject[r.project] !== undefined) byProject[r.project] += (r.required - r.available); });
+    entries = Object.entries(byProject).filter(([,v]) => v > 0).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  } else {
+    const byTower = {};
+    todayRows.forEach(r => { if(r.tower) byTower[r.tower] = (byTower[r.tower]||0) + (r.required - r.available); });
+    entries = Object.entries(byTower).filter(([,v]) => v > 0).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  }
+  const titleEl = el('donutTitle'), descEl = el('donutDesc');
+  if(titleEl) titleEl.textContent = scope === "__all__" ? "Shortage Share by Project" : `Shortage Share by Tower — ${scope}`;
+  if(descEl) descEl.textContent = scope === "__all__" ? "Where today's gap is concentrated." : "Which tower in this project needs attention first.";
   const palette = ['#7a1620','#a32330','#c72a35','#e0333f','#e8636c','#ee8b91','#f4b0b4','#f9d5d7'];
 
   if(!entries.length){
@@ -965,8 +975,9 @@ function renderDonut(scoped){
   });
 }
 
-function renderRiskCards(){
-  const trends = PROJECTS.map(p => {
+function renderRiskCards(scope){
+  const list = scope === "__all__" ? PROJECTS : [scope];
+  const trends = list.map(p => {
     const rows = RAW.filter(r => r.project === p);
     const daily = groupDaily(rows).slice(-14);
     if(daily.length < 3) return {project:p, slope:0, latestShortage:0, latestReq:0};
@@ -976,7 +987,7 @@ function renderRiskCards(){
     return {project:p, slope, latestShortage: ys[ys.length-1], latestReq: daily[daily.length-1].required};
   }).sort((a,b) => b.slope - a.slope).slice(0, 6);
 
-  el('riskSynced').textContent = `${trends.length} of ${PROJECTS.length} projects ranked`;
+  el('riskSynced').textContent = `${trends.length} of ${list.length} project${list.length===1?'':'s'} ranked`;
 
   if(!trends.length){
     el('riskGrid').innerHTML = '<p class="empty">Not enough logged days yet to compute trends.</p>';
