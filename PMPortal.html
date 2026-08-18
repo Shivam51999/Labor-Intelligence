@@ -198,6 +198,8 @@ function addRow(){
       <option value="">Select activity…</option>
       ${PROJECT_CONFIG.activities.map(a => `<option value="${a}">${a}</option>`).join('')}
     </select>
+    <label>Sub Activity <span class="hint" style="display:inline;">(optional)</span></label>
+    <select id="subact-${id}"><option value="">— pick Activity first —</option></select>
     <label>Contractor</label>
     <select id="contractor-${id}"><option value="">— pick Activity first —</option></select>
     <div class="hint" id="contact-${id}"></div>
@@ -224,12 +226,28 @@ async function onActivityChange(id){
   const activity = el("activity-" + id).value;
   const contractorSel = el("contractor-" + id);
   const contactHint = el("contact-" + id);
+  const subactSel = el("subact-" + id);
   const tower = el("towerSelect").value;
   contractorSel.innerHTML = '<option value="">Loading…</option>';
   contactHint.textContent = "";
+  subactSel.innerHTML = '<option value="">Loading…</option>';
   if (!activity) {
     contractorSel.innerHTML = '<option value="">— pick Activity first —</option>';
+    subactSel.innerHTML = '<option value="">— pick Activity first —</option>';
     return;
+  }
+
+  // Sub Activity — optional, scoped to this Project + Activity
+  try {
+    const subActs = await callApi("getSubActivitiesFor", {project: CURRENT_USER.project, activity});
+    if (!subActs.length) {
+      subactSel.innerHTML = '<option value="">(none configured)</option>';
+    } else {
+      subactSel.innerHTML = '<option value="">Select sub activity…</option>' +
+        subActs.map(s => `<option value="${s}">${s}</option>`).join('');
+    }
+  } catch (err) {
+    subactSel.innerHTML = '<option value="">(could not load)</option>';
   }
 
   // Pre-fill Required from whatever was last set for this Tower + Activity —
@@ -286,7 +304,9 @@ el("submitBtn").addEventListener("click", async () => {
     const id = div.id.split("-")[1];
     const activityEl = el("activity-" + id);
     const contractorEl = el("contractor-" + id);
+    const subactEl = el("subact-" + id);
     const activity = activityEl ? activityEl.value : "";
+    const subActivity = subactEl ? subactEl.value : "";
     const contractor = contractorEl ? contractorEl.value : "";
     let contact = "";
     if (contractorEl && contractorEl.selectedOptions && contractorEl.selectedOptions[0]) {
@@ -294,7 +314,7 @@ el("submitBtn").addEventListener("click", async () => {
     }
     if (!activity) continue;
     rows.push({
-      activity, contractor, contact,
+      activity, subActivity, contractor, contact,
       reqSkilled: el("reqSk-" + id).value, reqUnskilled: el("reqUnsk-" + id).value,
       availSkilled: el("availSk-" + id).value, availUnskilled: el("availUnsk-" + id).value,
     });
