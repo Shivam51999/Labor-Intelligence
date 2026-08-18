@@ -153,6 +153,12 @@
   .data-table td{padding:9px 12px;border-bottom:1px solid var(--line);}
   .data-table tr:last-child td{border-bottom:none;}
   .data-table tr:hover td{background:var(--bg-soft);}
+  .clickable-row{cursor:pointer;}
+  .clickable-row:hover td{background:var(--blue-soft) !important;}
+  .mini-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  .mini-table th{text-align:left;font-size:10.5px;color:var(--ink-dim);text-transform:uppercase;padding:4px 8px;border-bottom:1px solid var(--line);}
+  .mini-table td{padding:6px 8px;border-bottom:1px solid var(--line);}
+  .mini-table td.num, .mini-table th.num{text-align:right;}
   .data-table .num{font-family:var(--font-mono);text-align:right;}
   .databar-cell{position:relative;}
   .databar-cell .bar{
@@ -332,6 +338,7 @@ function processRows(rows, headers){
   const colProject = findCol(headers, ["project"]);
   const colTower = findCol(headers, ["tower"]);
   const colDate = findCol(headers, ["date"]);
+  const colActivity = findCol(headers, ["activity"]);
   const colTrade = findCol(headers, ["trade", "sub activity"]);
   const colReq = findCol(headers, ["required"]);
   const colAvail = findCol(headers, ["available"]);
@@ -353,6 +360,7 @@ function processRows(rows, headers){
     cleaned.push({
       project: proj,
       tower: colTower ? (row[colTower]||"").trim() : "",
+      activity: colActivity ? (row[colActivity]||"").trim() : "",
       trade: colTrade ? (row[colTrade]||"").trim() : "",
       contractor: colContractor ? (row[colContractor]||"").trim() : "",
       contact: colContact ? (row[colContact]||"").trim() : "",
@@ -470,29 +478,34 @@ function computeContractorSummary(scoped){
   const todayKey = dayKey(latestDate);
   const byContractor = {};
   scoped.filter(r => r.contractor && r.dateKey === todayKey).forEach(r => {
-    if(!byContractor[r.contractor]) byContractor[r.contractor] = {contact:'', required:0, available:0, projects:new Set()};
+    if(!byContractor[r.contractor]) byContractor[r.contractor] = {contact:'', required:0, available:0, projects:new Set(), activities:new Set()};
     byContractor[r.contractor].required += r.required;
     byContractor[r.contractor].available += r.available;
     if(r.contact) byContractor[r.contractor].contact = r.contact;
     byContractor[r.contractor].projects.add(r.project);
+    if(r.activity) byContractor[r.contractor].activities.add(r.activity);
   });
   return Object.entries(byContractor).map(([name,v]) => ({
     name, contact:v.contact, required:v.required, available:v.available,
     shortage: v.required-v.available,
     pct: v.required ? (v.required-v.available)/v.required : 0,
-    projects: [...v.projects].join(", ")
+    projects: [...v.projects].join(", "),
+    activities: [...v.activities].join(", ") || "—"
   })).filter(c => c.shortage > 0).sort((a,b) => b.pct - a.pct);
 }
 
 function renderProjectSummaryTable(scope){
-  const rows = computeProjectSummary(scope);
+  // Always shows ALL projects, regardless of the current filter — this is
+  // meant as an overview/navigation table. Click a row to filter the whole
+  // dashboard to that project (same effect as the Project Focus dropdown).
+  const rows = computeProjectSummary("__all__");
   const maxShortage = Math.max(1, ...rows.map(r => Math.abs(r.shortage)));
   const html = `
     <div class="table-wrap"><table class="data-table">
       <thead><tr><th>Sr.</th><th>Project</th><th class="num">Required</th><th class="num">Available</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Status</th><th class="num">Fulfilment %</th></tr></thead>
       <tbody>
         ${rows.map((r,i) => `
-          <tr>
+          <tr class="clickable-row" onclick="filterToProject('${r.project}')" title="Click to view ${r.project} only">
             <td>${i+1}</td>
             <td><b>${r.project}</b></td>
             <td class="num">${r.required.toLocaleString()}</td>
@@ -572,11 +585,12 @@ function renderContractorWatchlist(scoped){
   const maxShortage = Math.max(1, ...rows.map(r => Math.abs(r.shortage)));
   container.innerHTML = `
     <div class="table-wrap scrollable"><table class="data-table">
-      <thead><tr><th>Contractor</th><th class="num">Contact</th><th class="num">Available</th><th class="num">Required</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Projects Involved</th></tr></thead>
+      <thead><tr><th>Contractor</th><th>Activity</th><th class="num">Contact</th><th class="num">Available</th><th class="num">Required</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Projects Involved</th></tr></thead>
       <tbody>
         ${rows.map(r => `
           <tr>
             <td><b>${r.name}</b></td>
+            <td>${r.activities}</td>
             <td class="num">${r.contact||'—'}</td>
             <td class="num">${r.available.toLocaleString()}</td>
             <td class="num">${r.required.toLocaleString()}</td>
@@ -590,12 +604,13 @@ function renderContractorWatchlist(scoped){
   const top5 = rows.slice(0,5);
   callContainer.innerHTML = `
     <div class="table-wrap"><table class="data-table">
-      <thead><tr><th>Rank</th><th>Contractor</th><th class="num">Contact</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Projects</th></tr></thead>
+      <thead><tr><th>Rank</th><th>Contractor</th><th>Activity</th><th class="num">Contact</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Projects</th></tr></thead>
       <tbody>
         ${top5.map((r,i) => `
           <tr>
             <td>${i+1}</td>
             <td><b>${r.name}</b></td>
+            <td>${r.activities}</td>
             <td class="num">${r.contact||'—'}</td>
             <td class="num">${r.shortage.toLocaleString()}</td>
             <td class="num">${(r.pct*100).toFixed(1)}%</td>
@@ -704,6 +719,34 @@ function computeTowerSummary(scoped){
   })).sort((a,b) => b.pct - a.pct);
 }
 
+/** Activity-level breakdown for ONE tower, today's snapshot — powers the
+ *  click-to-expand detail row in the Tower Level table. */
+function computeTowerActivityBreakdown(scoped, tower){
+  const {latestDate} = latestRowsFor(scoped);
+  const todayKey = dayKey(latestDate);
+  const rows = scoped.filter(r => r.dateKey === todayKey && r.tower === tower && r.activity);
+  const byActivity = {};
+  rows.forEach(r => {
+    if(!byActivity[r.activity]) byActivity[r.activity] = {required:0, available:0};
+    byActivity[r.activity].required += r.required;
+    byActivity[r.activity].available += r.available;
+  });
+  return Object.entries(byActivity).map(([activity,v]) => ({
+    activity, required:v.required, available:v.available, shortage:v.required-v.available
+  })).sort((a,b) => b.shortage - a.shortage);
+}
+
+function toggleTowerDetail(safeId){
+  const row = document.getElementById('towerDetail-' + safeId);
+  const arrow = document.getElementById('towerArrow-' + safeId);
+  if(!row) return;
+  const isHidden = row.classList.contains('hidden');
+  row.classList.toggle('hidden');
+  if(arrow) arrow.textContent = isHidden ? '▾' : '▸';
+}
+
+function safeIdFor(str){ return str.replace(/[^a-zA-Z0-9]/g, '_'); }
+
 function renderTowerSection(scope, scoped){
   const container = el('towerSection');
   if(scope === "__all__"){
@@ -723,20 +766,37 @@ function renderTowerSection(scope, scoped){
   }
   const maxShortage = Math.max(1, ...rows.map(r => Math.abs(r.shortage)));
   container.innerHTML = `
-    <div class="section-head"><div class="tag">Tower Level — ${scope}</div><div class="synced">${rows.length} towers, today's snapshot</div></div>
+    <div class="section-head"><div class="tag">Tower Level — ${scope}</div><div class="synced">${rows.length} towers, today's snapshot — click a row for activity detail</div></div>
     <div class="table-wrap"><table class="data-table">
-      <thead><tr><th>Tower</th><th class="num">Required</th><th class="num">Available</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Status</th></tr></thead>
+      <thead><tr><th></th><th>Tower</th><th class="num">Required</th><th class="num">Available</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Status</th></tr></thead>
       <tbody>
-        ${rows.map(r => `
-          <tr>
+        ${rows.map(r => {
+          const safeId = safeIdFor(r.tower);
+          const detail = computeTowerActivityBreakdown(scoped, r.tower);
+          const detailRows = detail.length
+            ? detail.map(d => `<tr><td>${d.activity}</td><td class="num">${d.required}</td><td class="num">${d.available}</td><td class="num" style="color:${d.shortage>0?'var(--red)':'var(--green)'};font-weight:600;">${d.shortage}</td></tr>`).join('')
+            : `<tr><td colspan="4" style="color:var(--ink-dim);">No activity-level data for this tower yet.</td></tr>`;
+          return `
+          <tr class="clickable-row" onclick="toggleTowerDetail('${safeId}')">
+            <td><span id="towerArrow-${safeId}" style="color:var(--ink-faint);">▸</span></td>
             <td><b>${r.tower}</b></td>
             <td class="num">${r.required.toLocaleString()}</td>
             <td class="num">${r.available.toLocaleString()}</td>
             ${dataBarCell(r.shortage, maxShortage, r.shortage>0?'#e0333f':'#1f9d55')}
             <td class="num">${(r.pct*100).toFixed(1)}%</td>
             <td>${statusPill(r.pct)}</td>
-          </tr>`).join('')}
+          </tr>
+          <tr id="towerDetail-${safeId}" class="hidden">
+            <td colspan="7" style="background:var(--bg-soft);padding:12px 12px 12px 34px;">
+              <table class="mini-table" style="margin:0;">
+                <thead><tr><th>Activity</th><th class="num">Req</th><th class="num">Avail</th><th class="num">Short</th></tr></thead>
+                <tbody>${detailRows}</tbody>
+              </table>
+            </td>
+          </tr>`;
+        }).join('')}
         <tr style="background:var(--bg-soft-2);font-weight:700;">
+          <td></td>
           <td>TOTAL</td>
           <td class="num">${rows.reduce((a,r)=>a+r.required,0).toLocaleString()}</td>
           <td class="num">${rows.reduce((a,r)=>a+r.available,0).toLocaleString()}</td>
@@ -746,6 +806,14 @@ function renderTowerSection(scope, scoped){
       </tbody>
     </table></div>
   `;
+}
+
+/** Sets the Project Focus dropdown to a specific project and re-renders — used
+ *  when a row in the always-org-wide Project Summary table is clicked. */
+function filterToProject(project){
+  el('projectFilter').value = project;
+  render();
+  window.scrollTo({top: 0, behavior: 'smooth'});
 }
 
 function render(){
