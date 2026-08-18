@@ -201,7 +201,7 @@ function addRow(){
     <label>Contractor</label>
     <select id="contractor-${id}"><option value="">— pick Activity first —</option></select>
     <div class="hint" id="contact-${id}"></div>
-    <label>Required</label>
+    <label>Required <span class="hint" style="display:inline;">(pre-filled from last entry — edit if the plan changed)</span></label>
     <div class="two-col">
       <input type="number" min="0" id="reqSk-${id}" placeholder="Skilled">
       <input type="number" min="0" id="reqUnsk-${id}" placeholder="Unskilled">
@@ -224,12 +224,24 @@ async function onActivityChange(id){
   const activity = el("activity-" + id).value;
   const contractorSel = el("contractor-" + id);
   const contactHint = el("contact-" + id);
+  const tower = el("towerSelect").value;
   contractorSel.innerHTML = '<option value="">Loading…</option>';
   contactHint.textContent = "";
   if (!activity) {
     contractorSel.innerHTML = '<option value="">— pick Activity first —</option>';
     return;
   }
+
+  // Pre-fill Required from whatever was last set for this Tower + Activity —
+  // "sticky" so PMs only need to change it when the plan actually changes.
+  if (tower) {
+    try {
+      const req = await callApi("getRequirement", {project: CURRENT_USER.project, tower, activity});
+      if (req.reqSkilled) el("reqSk-" + id).value = req.reqSkilled;
+      if (req.reqUnskilled) el("reqUnsk-" + id).value = req.reqUnskilled;
+    } catch (err) { /* non-fatal — PM can just type it in fresh */ }
+  }
+
   try {
     const matches = await callApi("getContractorsFor", {project: CURRENT_USER.project, activity});
     if (!matches.length) {
