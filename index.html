@@ -165,6 +165,8 @@
   .status-pill.low{background:#eef4ff;color:var(--blue);}
   .status-pill.ok{background:var(--green-soft);color:var(--green);}
   .table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--line);}
+  .table-wrap.scrollable{max-height:420px;overflow-y:auto;}
+  .table-wrap.scrollable thead th{position:sticky;top:0;z-index:1;}
   .table-wrap table{margin:0;}
   .highlight-box{border:1.5px dashed var(--red);border-radius:12px;background:var(--red-soft);padding:4px;margin-bottom:16px;}
   .highlight-box .table-wrap{border:none;border-radius:8px;}
@@ -217,7 +219,7 @@
 
 <script>
 const PROXY_URL = "/api/csv-proxy";
-const DIRECT_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRaTMMYz9tevz4FJkN5rpdfb5UD955CBW-j_dwyHNZ4rTZUHljBRsVTL7U1JVtQh9p_EsBxvfU56RBd/pub?gid=1359357118&single=true&output=csv";
+const DIRECT_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRaTMMYz9tevz4FJkN5rpdfb5UD955CBW-j_dwyHNZ4rTZUHljBRsVTL7U1JVtQh9p_EsBxvfU56RBd/pub?gid=808917304&single=true&output=csv";
 
 let RAW = [];
 let PROJECTS = [];
@@ -330,7 +332,7 @@ function processRows(rows, headers){
   const colProject = findCol(headers, ["project"]);
   const colTower = findCol(headers, ["tower"]);
   const colDate = findCol(headers, ["date"]);
-  const colTrade = findCol(headers, ["trade"]);
+  const colTrade = findCol(headers, ["trade", "sub activity"]);
   const colReq = findCol(headers, ["required"]);
   const colAvail = findCol(headers, ["available"]);
   const colContractor = findCol(headers, ["contractor"]);
@@ -569,7 +571,7 @@ function renderContractorWatchlist(){
   }
   const maxShortage = Math.max(1, ...rows.map(r => Math.abs(r.shortage)));
   container.innerHTML = `
-    <div class="table-wrap"><table class="data-table">
+    <div class="table-wrap scrollable"><table class="data-table">
       <thead><tr><th>Contractor</th><th class="num">Contact</th><th class="num">Available</th><th class="num">Required</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Projects Involved</th></tr></thead>
       <tbody>
         ${rows.map(r => `
