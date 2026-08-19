@@ -155,6 +155,17 @@
   .data-table tr:hover td{background:var(--bg-soft);}
   .clickable-row{cursor:pointer;}
   .clickable-row:hover td{background:var(--blue-soft) !important;}
+  .tab-btn{
+    background:#fff;color:var(--ink-dim);border:1px solid var(--line);border-radius:8px;
+    padding:9px 16px;font-family:var(--font-body);font-weight:600;font-size:13px;cursor:pointer;
+  }
+  .tab-btn.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .grade-pill{display:inline-block;font-size:11px;font-weight:700;padding:4px 12px;border-radius:100px;text-transform:uppercase;letter-spacing:0.03em;}
+  .grade-pill.excellent{background:var(--green-soft);color:var(--green);}
+  .grade-pill.good{background:var(--blue-soft);color:var(--blue);}
+  .grade-pill.watch{background:var(--gold-soft);color:var(--gold);}
+  .grade-pill.poor{background:var(--red-soft);color:var(--red);}
+  .hint{font-size:11px;color:var(--ink-faint);}
   .mini-table{width:100%;border-collapse:collapse;font-size:12.5px;}
   .mini-table th{text-align:left;font-size:10.5px;color:var(--ink-dim);text-transform:uppercase;padding:4px 8px;border-bottom:1px solid var(--line);}
   .mini-table td{padding:6px 8px;border-bottom:1px solid var(--line);}
@@ -473,6 +484,66 @@ function computeTradeSummary(scoped){
   })).sort((a,b) => b.shortage - a.shortage);
 }
 
+/**
+ * Composite 30-day performance score per contractor, org-wide (ranking
+ * across projects only makes sense with the full picture, so this ignores
+ * the current Project Focus filter — always computed from RAW).
+ * Score = 70% avg fulfilment (capped 100%) + 20% consistency (% days >=90%
+ * fulfilment) + 10% trend (2nd half of window vs 1st half).
+ * Grade tiers match the Contractor Directory sheet's own scoring for
+ * conceptual consistency: Excellent >=90, Good >=75, Watch >=50, else Poor.
+ */
+function computeContractorPerformance(lookbackDays){
+  lookbackDays = lookbackDays || 30;
+  const relevantRows = RAW.filter(r => r.contractor);
+  if(!relevantRows.length) return [];
+  const {latestDate} = latestRowsFor(relevantRows);
+  const cutoff = new Date(latestDate.getTime() - lookbackDays*86400000);
+  const windowRows = relevantRows.filter(r => r.date >= cutoff && r.date <= latestDate);
+
+  const byContractor = {};
+  windowRows.forEach(r => {
+    if(!byContractor[r.contractor]) byContractor[r.contractor] = {days:{}, projects:new Set(), activities:new Set(), contact:''};
+    const c = byContractor[r.contractor];
+    if(!c.days[r.dateKey]) c.days[r.dateKey] = {required:0, available:0, date:r.date};
+    c.days[r.dateKey].required += r.required;
+    c.days[r.dateKey].available += r.available;
+    c.projects.add(r.project);
+    if(r.activity) c.activities.add(r.activity);
+    if(r.contact) c.contact = r.contact;
+  });
+
+  return Object.entries(byContractor).map(([name, c]) => {
+    const days = Object.values(c.days).sort((a,b) => a.date - b.date);
+    const dailyFulfil = days.filter(d => d.required > 0).map(d => Math.min(1, d.available / d.required));
+    if(!dailyFulfil.length) return null;
+
+    const avgFulfil = dailyFulfil.reduce((a,b) => a+b, 0) / dailyFulfil.length;
+    const consistency = dailyFulfil.filter(f => f >= 0.9).length / dailyFulfil.length;
+
+    let trend = 0;
+    if(dailyFulfil.length >= 4){
+      const half = Math.floor(dailyFulfil.length / 2);
+      const firstHalf = dailyFulfil.slice(0, half).reduce((a,b) => a+b, 0) / half;
+      const secondHalf = dailyFulfil.slice(half).reduce((a,b) => a+b, 0) / (dailyFulfil.length - half);
+      trend = secondHalf - firstHalf;
+    }
+
+    const fulfilScore = avgFulfil * 100;
+    const consistencyScore = consistency * 100;
+    const trendScore = Math.max(0, Math.min(100, 50 + trend * 200));
+    const composite = Math.round(fulfilScore*0.7 + consistencyScore*0.2 + trendScore*0.1);
+    const grade = composite >= 90 ? 'Excellent' : composite >= 75 ? 'Good' : composite >= 50 ? 'Watch' : 'Poor';
+
+    return {
+      name, contact: c.contact, composite, avgFulfil, consistency, trend,
+      grade, daysTracked: dailyFulfil.length,
+      projects: [...c.projects].join(', '),
+      activities: [...c.activities].join(', ') || '—'
+    };
+  }).filter(Boolean).sort((a,b) => b.composite - a.composite);
+}
+
 function computeContractorSummary(scoped){
   const {latestDate} = latestRowsFor(scoped);
   const todayKey = dayKey(latestDate);
@@ -620,6 +691,65 @@ function renderContractorWatchlist(scoped){
     </table></div>`;
 }
 
+function showContractorTab(which){
+  const watchView = el('contractorWatchView');
+  const topView = el('contractorTopView');
+  const watchBtn = el('contractorTabWatchBtn');
+  const topBtn = el('contractorTabTopBtn');
+  if(!watchView || !topView) return;
+  if(which === 'top'){
+    watchView.classList.add('hidden');
+    topView.classList.remove('hidden');
+    watchBtn.classList.remove('active');
+    topBtn.classList.add('active');
+    renderContractorTop();
+  } else {
+    watchView.classList.remove('hidden');
+    topView.classList.add('hidden');
+    watchBtn.classList.add('active');
+    topBtn.classList.remove('active');
+  }
+}
+
+function gradeClass(grade){
+  return {Excellent:'excellent', Good:'good', Watch:'watch', Poor:'poor'}[grade] || 'watch';
+}
+
+function renderContractorTop(){
+  const container = el('contractorTopTable');
+  if(!container) return;
+  const rows = computeContractorPerformance(30);
+  if(!rows.length){
+    container.innerHTML = '<div class="empty">Not enough contractor data logged yet to rank performance.</div>';
+    return;
+  }
+  container.innerHTML = `
+    <div class="table-wrap scrollable"><table class="data-table">
+      <thead><tr><th>Rank</th><th>Contractor</th><th>Activity</th><th>Grade</th><th class="num">Score</th><th class="num">Avg Fulfilment</th><th class="num">Consistency</th><th>Trend</th><th class="num">Days Tracked</th><th>Projects</th></tr></thead>
+      <tbody>
+        ${rows.map((r,i) => {
+          const trendLabel = r.trend > 0.03 ? '▲ Improving' : r.trend < -0.03 ? '▼ Declining' : '— Steady';
+          const trendColor = r.trend > 0.03 ? 'var(--green)' : r.trend < -0.03 ? 'var(--red)' : 'var(--ink-dim)';
+          return `
+          <tr>
+            <td>${i+1}</td>
+            <td><b>${r.name}</b></td>
+            <td>${r.activities}</td>
+            <td><span class="grade-pill ${gradeClass(r.grade)}">${r.grade}</span></td>
+            <td class="num" style="font-weight:700;">${r.composite}</td>
+            <td class="num">${(r.avgFulfil*100).toFixed(1)}%</td>
+            <td class="num">${(r.consistency*100).toFixed(0)}%</td>
+            <td style="color:${trendColor};font-weight:600;">${trendLabel}</td>
+            <td class="num">${r.daysTracked}</td>
+            <td>${r.projects}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table></div>
+    <p class="hint" style="margin-top:10px;">Score = 70% avg fulfilment (30 days, capped at 100%) + 20% consistency (days ≥90% fulfilled) + 10% trend (recent half vs earlier half of the window).</p>
+  `;
+}
+
 function sparklineSVG(values, color){
   if(values.length < 1) return '';
   const w = 200, h = 34, pad = 2, gap = 3;
@@ -693,12 +823,24 @@ function buildLayout(){
       </div>
     </div>
 
-    <div class="section-head"><div class="tag">Contractor Watchlist</div><div class="synced">Who is short on manpower</div></div>
-    <div class="highlight-box">
-      <div class="highlight-title">📞 Top 5 contractors to call today</div>
-      <div id="topContractorsCall"></div>
+    <div class="section-head"><div class="tag">Contractor Performance</div><div class="synced">Watchlist &amp; top performers</div></div>
+    <div style="display:flex; gap:8px; margin-bottom:14px;">
+      <button class="tab-btn active" id="contractorTabWatchBtn" onclick="showContractorTab('watch')">⚠ Needs Attention</button>
+      <button class="tab-btn" id="contractorTabTopBtn" onclick="showContractorTab('top')">🏆 Top Performers</button>
     </div>
-    <div id="contractorWatchlist"></div>
+
+    <div id="contractorWatchView">
+      <div class="highlight-box">
+        <div class="highlight-title">📞 Top 5 contractors to call today</div>
+        <div id="topContractorsCall"></div>
+      </div>
+      <div id="contractorWatchlist"></div>
+    </div>
+
+    <div id="contractorTopView" class="hidden">
+      <p class="desc" style="margin-bottom:12px;">Ranked by a 30-day composite score: fulfilment rate, consistency, and trend. See footer for exact logic.</p>
+      <div id="contractorTopTable"></div>
+    </div>
   `;
 }
 
