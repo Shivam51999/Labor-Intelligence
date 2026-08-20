@@ -321,6 +321,8 @@ function addRow(){
     </select>
     <label>Sub Activity <span class="hint" style="display:inline;">(optional)</span></label>
     <select id="subact-${id}"><option value="">— pick Activity first —</option></select>
+    <label>Labor Type <span class="hint" style="display:inline;">(optional)</span></label>
+    <select id="labortype-${id}"><option value="">— pick Activity first —</option></select>
     <label>Contractor</label>
     <select id="contractor-${id}"><option value="">— pick Activity first —</option></select>
     <div class="hint" id="contact-${id}"></div>
@@ -396,14 +398,30 @@ async function onActivityChange(id){
   const contractorSel = el("contractor-" + id);
   const contactHint = el("contact-" + id);
   const subactSel = el("subact-" + id);
+  const labortypeSel = el("labortype-" + id);
   const tower = el("towerSelect").value;
   contractorSel.innerHTML = '<option value="">Loading…</option>';
   contactHint.textContent = "";
   subactSel.innerHTML = '<option value="">Loading…</option>';
+  labortypeSel.innerHTML = '<option value="">Loading…</option>';
   if (!activity) {
     contractorSel.innerHTML = '<option value="">— pick Activity first —</option>';
     subactSel.innerHTML = '<option value="">— pick Activity first —</option>';
+    labortypeSel.innerHTML = '<option value="">— pick Activity first —</option>';
     return;
+  }
+
+  // Labor Type — optional, scoped to this Project + Activity (e.g. Carpenter, Mason, Helper)
+  try {
+    const laborTypes = await callApi("getLaborTypesFor", {project: CURRENT_USER.project, activity});
+    if (!laborTypes.length) {
+      labortypeSel.innerHTML = '<option value="">(none configured)</option>';
+    } else {
+      labortypeSel.innerHTML = '<option value="">Select labor type…</option>' +
+        laborTypes.map(t => `<option value="${t}">${t}</option>`).join('');
+    }
+  } catch (err) {
+    labortypeSel.innerHTML = `<option value="">(error: ${err.message})</option>`;
   }
 
   // Sub Activity — optional, scoped to this Project + Activity
@@ -472,8 +490,10 @@ el("submitBtn").addEventListener("click", async () => {
     const activityEl = el("activity-" + id);
     const contractorEl = el("contractor-" + id);
     const subactEl = el("subact-" + id);
+    const labortypeEl = el("labortype-" + id);
     const activity = activityEl ? activityEl.value : "";
     const subActivity = subactEl ? subactEl.value : "";
+    const laborType = labortypeEl ? labortypeEl.value : "";
     const contractor = contractorEl ? contractorEl.value : "";
     let contact = "";
     let siteContactName = "";
@@ -483,7 +503,7 @@ el("submitBtn").addEventListener("click", async () => {
     }
     if (!activity) continue;
     rows.push({
-      activity, subActivity, contractor, contact, siteContactName,
+      activity, subActivity, laborType, contractor, contact, siteContactName,
       reqSkilled: el("reqSk-" + id).value, reqUnskilled: el("reqUnsk-" + id).value,
       availSkilled: el("availSk-" + id).value, availUnskilled: el("availUnsk-" + id).value,
     });
