@@ -142,7 +142,18 @@ async function callApi(action, params){
     body: JSON.stringify({action, ...params})
   });
   if (!res.ok) throw new Error("Request failed: HTTP " + res.status);
-  return res.json();
+  const data = await res.json();
+  // Some endpoints (getPMList, getContractorsFor, getSubActivitiesFor, etc.)
+  // return a plain array or object with no "success" field on the happy path —
+  // but the backend's error paths (unknown action, unhandled exception) always
+  // return {success:false, message:...}. Catching that here means a real
+  // backend error surfaces as an actual error everywhere, instead of being
+  // silently misread as "empty results" by whichever caller happens to check
+  // .length on it.
+  if (data && typeof data === "object" && data.success === false) {
+    throw new Error(data.message || "Request failed.");
+  }
+  return data;
 }
 
 // ---------- Login ----------
@@ -405,7 +416,7 @@ async function onActivityChange(id){
         subActs.map(s => `<option value="${s}">${s}</option>`).join('');
     }
   } catch (err) {
-    subactSel.innerHTML = '<option value="">(could not load)</option>';
+    subactSel.innerHTML = `<option value="">(error: ${err.message})</option>`;
   }
 
   // Required — locked for the week once it's been set; PM can override via a link.
