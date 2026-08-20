@@ -167,7 +167,7 @@
   .grade-pill.poor{background:var(--red-soft);color:var(--red);}
   .hint{font-size:11px;color:var(--ink-faint);}
   .mini-table{width:100%;border-collapse:collapse;font-size:12.5px;}
-  .mini-table th{text-align:left;font-size:10.5px;color:var(--ink-dim);text-transform:uppercase;padding:4px 8px;border-bottom:1px solid var(--line);}
+  .mini-table th{background:none !important;color:var(--ink-dim) !important;text-align:left;font-size:10.5px;text-transform:uppercase;padding:4px 8px;border-bottom:1px solid var(--line);font-weight:600;}
   .mini-table td{padding:6px 8px;border-bottom:1px solid var(--line);}
   .mini-table td.num, .mini-table th.num{text-align:right;}
   .data-table .num{font-family:var(--font-mono);text-align:right;}
@@ -355,6 +355,11 @@ function processRows(rows, headers){
   const colAvail = findCol(headers, ["available"]);
   const colContractor = findCol(headers, ["contractor"]);
   const colContact = findCol(headers, ["contact"]);
+  const colSiteName = findCol(headers, ["site contact name"]);
+  const colReqSk = findCol(headers, ["required skilled"]);
+  const colReqUnsk = findCol(headers, ["required unskilled"]);
+  const colAvailSk = findCol(headers, ["available skilled"]);
+  const colAvailUnsk = findCol(headers, ["available unskilled"]);
 
   if(!colProject || !colDate || !colReq || !colAvail){
     showError({message: "Expected columns (Project, Date, Required, Available) weren't all found. Found: " + headers.join(", ")});
@@ -368,6 +373,10 @@ function processRows(rows, headers){
     const avail = parseFloat(row[colAvail]);
     const proj = (row[colProject] || "").trim();
     if(!d || !proj || isNaN(req) || isNaN(avail)) continue;
+    const reqSk = colReqSk ? parseFloat(row[colReqSk]) : NaN;
+    const reqUnsk = colReqUnsk ? parseFloat(row[colReqUnsk]) : NaN;
+    const availSk = colAvailSk ? parseFloat(row[colAvailSk]) : NaN;
+    const availUnsk = colAvailUnsk ? parseFloat(row[colAvailUnsk]) : NaN;
     cleaned.push({
       project: proj,
       tower: colTower ? (row[colTower]||"").trim() : "",
@@ -375,8 +384,16 @@ function processRows(rows, headers){
       trade: colTrade ? (row[colTrade]||"").trim() : "",
       contractor: colContractor ? (row[colContractor]||"").trim() : "",
       contact: colContact ? (row[colContact]||"").trim() : "",
+      siteContactName: colSiteName ? (row[colSiteName]||"").trim() : "",
       date: d, dateKey: dayKey(d),
-      required: req, available: avail, shortage: req - avail
+      required: req, available: avail, shortage: req - avail,
+      // Skilled/Unskilled breakdown — NaN (not 0) when the columns don't exist
+      // or weren't filled in for this row, so callers can tell "no data" apart
+      // from "genuinely zero".
+      reqSkilled: isNaN(reqSk) ? null : reqSk,
+      reqUnskilled: isNaN(reqUnsk) ? null : reqUnsk,
+      availSkilled: isNaN(availSk) ? null : availSk,
+      availUnskilled: isNaN(availUnsk) ? null : availUnsk
     });
   }
 
@@ -549,15 +566,16 @@ function computeContractorSummary(scoped){
   const todayKey = dayKey(latestDate);
   const byContractor = {};
   scoped.filter(r => r.contractor && r.dateKey === todayKey).forEach(r => {
-    if(!byContractor[r.contractor]) byContractor[r.contractor] = {contact:'', required:0, available:0, projects:new Set(), activities:new Set()};
+    if(!byContractor[r.contractor]) byContractor[r.contractor] = {contact:'', siteContactName:'', required:0, available:0, projects:new Set(), activities:new Set()};
     byContractor[r.contractor].required += r.required;
     byContractor[r.contractor].available += r.available;
     if(r.contact) byContractor[r.contractor].contact = r.contact;
+    if(r.siteContactName) byContractor[r.contractor].siteContactName = r.siteContactName;
     byContractor[r.contractor].projects.add(r.project);
     if(r.activity) byContractor[r.contractor].activities.add(r.activity);
   });
   return Object.entries(byContractor).map(([name,v]) => ({
-    name, contact:v.contact, required:v.required, available:v.available,
+    name, contact:v.contact, siteContactName:v.siteContactName, required:v.required, available:v.available,
     shortage: v.required-v.available,
     pct: v.required ? (v.required-v.available)/v.required : 0,
     projects: [...v.projects].join(", "),
@@ -656,11 +674,12 @@ function renderContractorWatchlist(scoped){
   const maxShortage = Math.max(1, ...rows.map(r => Math.abs(r.shortage)));
   container.innerHTML = `
     <div class="table-wrap scrollable"><table class="data-table">
-      <thead><tr><th>Contractor</th><th>Activity</th><th class="num">Contact</th><th class="num">Available</th><th class="num">Required</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Projects Involved</th></tr></thead>
+      <thead><tr><th>Contractor</th><th>Site Contact</th><th>Activity</th><th class="num">Contact</th><th class="num">Available</th><th class="num">Required</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Projects Involved</th></tr></thead>
       <tbody>
         ${rows.map(r => `
           <tr>
             <td><b>${r.name}</b></td>
+            <td>${r.siteContactName||'—'}</td>
             <td>${r.activities}</td>
             <td class="num">${r.contact||'—'}</td>
             <td class="num">${r.available.toLocaleString()}</td>
@@ -675,12 +694,13 @@ function renderContractorWatchlist(scoped){
   const top5 = rows.slice(0,5);
   callContainer.innerHTML = `
     <div class="table-wrap"><table class="data-table">
-      <thead><tr><th>Rank</th><th>Contractor</th><th>Activity</th><th class="num">Contact</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Projects</th></tr></thead>
+      <thead><tr><th>Rank</th><th>Contractor</th><th>Site Contact</th><th>Activity</th><th class="num">Contact</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Projects</th></tr></thead>
       <tbody>
         ${top5.map((r,i) => `
           <tr>
             <td>${i+1}</td>
             <td><b>${r.name}</b></td>
+            <td>${r.siteContactName||'—'}</td>
             <td>${r.activities}</td>
             <td class="num">${r.contact||'—'}</td>
             <td class="num">${r.shortage.toLocaleString()}</td>
@@ -869,12 +889,24 @@ function computeTowerActivityBreakdown(scoped, tower){
   const rows = scoped.filter(r => r.dateKey === todayKey && r.tower === tower && r.activity);
   const byActivity = {};
   rows.forEach(r => {
-    if(!byActivity[r.activity]) byActivity[r.activity] = {required:0, available:0};
-    byActivity[r.activity].required += r.required;
-    byActivity[r.activity].available += r.available;
+    if(!byActivity[r.activity]) byActivity[r.activity] = {
+      required:0, available:0, reqSk:0, reqUnsk:0, availSk:0, availUnsk:0, hasBreakdown:false
+    };
+    const b = byActivity[r.activity];
+    b.required += r.required;
+    b.available += r.available;
+    if(r.reqSkilled !== null || r.reqUnskilled !== null || r.availSkilled !== null || r.availUnskilled !== null){
+      b.hasBreakdown = true;
+      b.reqSk += r.reqSkilled || 0;
+      b.reqUnsk += r.reqUnskilled || 0;
+      b.availSk += r.availSkilled || 0;
+      b.availUnsk += r.availUnskilled || 0;
+    }
   });
   return Object.entries(byActivity).map(([activity,v]) => ({
-    activity, required:v.required, available:v.available, shortage:v.required-v.available
+    activity, required:v.required, available:v.available, shortage:v.required-v.available,
+    hasBreakdown: v.hasBreakdown,
+    reqSk: v.reqSk, reqUnsk: v.reqUnsk, availSk: v.availSk, availUnsk: v.availUnsk
   })).sort((a,b) => b.shortage - a.shortage);
 }
 
@@ -915,9 +947,16 @@ function renderTowerSection(scope, scoped){
         ${rows.map(r => {
           const safeId = safeIdFor(r.tower);
           const detail = computeTowerActivityBreakdown(scoped, r.tower);
+          const anyBreakdown = detail.some(d => d.hasBreakdown);
+          const detailHeader = anyBreakdown
+            ? `<th>Activity</th><th class="num">Req Skilled</th><th class="num">Req Unskilled</th><th class="num">Avail Skilled</th><th class="num">Avail Unskilled</th><th class="num">Short</th>`
+            : `<th>Activity</th><th class="num">Req</th><th class="num">Avail</th><th class="num">Short</th>`;
           const detailRows = detail.length
-            ? detail.map(d => `<tr><td>${d.activity}</td><td class="num">${d.required}</td><td class="num">${d.available}</td><td class="num" style="color:${d.shortage>0?'var(--red)':'var(--green)'};font-weight:600;">${d.shortage}</td></tr>`).join('')
-            : `<tr><td colspan="4" style="color:var(--ink-dim);">No activity-level data for this tower yet.</td></tr>`;
+            ? detail.map(d => anyBreakdown
+                ? `<tr><td>${d.activity}</td><td class="num">${d.hasBreakdown ? d.reqSk : '—'}</td><td class="num">${d.hasBreakdown ? d.reqUnsk : '—'}</td><td class="num">${d.hasBreakdown ? d.availSk : '—'}</td><td class="num">${d.hasBreakdown ? d.availUnsk : '—'}</td><td class="num" style="color:${d.shortage>0?'var(--red)':'var(--green)'};font-weight:600;">${d.shortage}</td></tr>`
+                : `<tr><td>${d.activity}</td><td class="num">${d.required}</td><td class="num">${d.available}</td><td class="num" style="color:${d.shortage>0?'var(--red)':'var(--green)'};font-weight:600;">${d.shortage}</td></tr>`
+              ).join('')
+            : `<tr><td colspan="6" style="color:var(--ink-dim);">No activity-level data for this tower yet.</td></tr>`;
           return `
           <tr class="clickable-row" onclick="toggleTowerDetail('${safeId}')">
             <td><span id="towerArrow-${safeId}" style="color:var(--ink-faint);">▸</span></td>
@@ -931,7 +970,7 @@ function renderTowerSection(scope, scoped){
           <tr id="towerDetail-${safeId}" class="hidden">
             <td colspan="7" style="background:var(--bg-soft);padding:12px 12px 12px 34px;">
               <table class="mini-table" style="margin:0;">
-                <thead><tr><th>Activity</th><th class="num">Req</th><th class="num">Avail</th><th class="num">Short</th></tr></thead>
+                <thead><tr>${detailHeader}</tr></thead>
                 <tbody>${detailRows}</tbody>
               </table>
             </td>
