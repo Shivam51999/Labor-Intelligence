@@ -357,6 +357,7 @@ function processRows(rows, headers){
   const colContractor = findCol(headers, ["contractor"]);
   const colContact = findCol(headers, ["contact"]);
   const colSiteName = findCol(headers, ["site contact name"]);
+  const colLaborType = findCol(headers, ["labor type"]);
   const colReqSk = findCol(headers, ["required skilled"]);
   const colReqUnsk = findCol(headers, ["required unskilled"]);
   const colAvailSk = findCol(headers, ["available skilled"]);
@@ -386,6 +387,7 @@ function processRows(rows, headers){
       contractor: colContractor ? (row[colContractor]||"").trim() : "",
       contact: colContact ? (row[colContact]||"").trim() : "",
       siteContactName: colSiteName ? (row[colSiteName]||"").trim() : "",
+      laborType: colLaborType ? (row[colLaborType]||"").trim() : "",
       date: d, dateKey: dayKey(d),
       required: req, available: avail, shortage: req - avail,
       // Skilled/Unskilled breakdown — NaN (not 0) when the columns don't exist
@@ -859,6 +861,14 @@ function buildLayout(){
       </div>
     </div>
 
+    <div class="chart-grid" style="margin-top:16px;">
+      <div class="panel">
+        <h2>Skilled vs Unskilled Shortage by Trade</h2>
+        <p class="desc" id="skillChartDesc">Scoped to current filter, today's snapshot.</p>
+        <div class="chart-box"><canvas id="skillChart"></canvas></div>
+      </div>
+    </div>
+
     <div class="section-head"><div class="tag">Contractor Performance</div><div class="synced">Watchlist &amp; top performers</div></div>
     <div style="display:flex; gap:8px; margin-bottom:14px;">
       <button class="tab-btn active" id="contractorTabWatchBtn" onclick="showContractorTab('watch')">⚠ Needs Attention</button>
@@ -1035,6 +1045,7 @@ function render(){
   renderProjectSummaryTable(scope);
   renderRiskCards(scope);
   renderTradeChart(scoped);
+  renderSkillChart(scoped);
   renderTradeTable(scoped);
   renderContractorWatchlist(scoped);
 }
@@ -1350,6 +1361,46 @@ function renderTradeChart(scoped){
       indexAxis:'y',
       responsive:true, maintainAspectRatio:false,
       plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#9aa1ab'}, grid:{color:'#f0f0f0'}, beginAtZero:true},
+        y:{ticks:{color:'#6b7280'}, grid:{display:false}}
+      }
+    }
+  });
+}
+
+/**
+ * Grouped bar chart: Skilled shortage vs Unskilled shortage, per Trade.
+ * Reuses computeTradeSummary's breakdown data — only shows trades where at
+ * least one row has the Skilled/Unskilled split (pre-migration rows are
+ * excluded from this specific chart rather than shown as misleading zeros).
+ */
+function renderSkillChart(scoped){
+  destroyChart('skillChart');
+  const rows = computeTradeSummary(scoped).filter(r => r.bd.anyBreakdown);
+  const descEl = el('skillChartDesc');
+
+  if(!rows.length){
+    el('skillChart').parentElement.innerHTML = '<p class="empty">No Skilled/Unskilled breakdown data available for this scope yet — only new PM Portal submissions carry this split.</p>';
+    return;
+  }
+  if(descEl) descEl.textContent = `Scoped to current filter, today's snapshot — ${rows.length} trade${rows.length===1?'':'s'} with breakdown data.`;
+
+  const entries = rows
+    .map(r => ({trade: r.trade, skShortage: r.bd.reqSk - r.bd.availSk, unskShortage: r.bd.reqUnsk - r.bd.availUnsk}))
+    .sort((a,b) => (b.skShortage + b.unskShortage) - (a.skShortage + a.unskShortage))
+    .slice(0, 8);
+
+  charts.skillChart = new Chart(el('skillChart'), {
+    type:'bar',
+    data:{ labels: entries.map(e=>e.trade), datasets:[
+      {label:'Skilled shortage', data: entries.map(e=>e.skShortage), backgroundColor:'#2f5fdb', borderRadius:4},
+      {label:'Unskilled shortage', data: entries.map(e=>e.unskShortage), backgroundColor:'#c9971f', borderRadius:4}
+    ]},
+    options:{
+      indexAxis:'y',
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom', labels:{color:'#6b7280', boxWidth:10, font:{size:11}}}},
       scales:{
         x:{ticks:{color:'#9aa1ab'}, grid:{color:'#f0f0f0'}, beginAtZero:true},
         y:{ticks:{color:'#6b7280'}, grid:{display:false}}
