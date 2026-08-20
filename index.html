@@ -210,6 +210,7 @@
       <h1>Labour, tracked.<br><span class="accent">Before it's short.</span></h1>
       <p class="hero-desc" id="subline">Loading live data from Master Raw…</p>
       <div class="kpi-strip" id="kpiStrip"></div>
+      <div class="status-line" id="kpiBreakdownLine" style="margin-top:10px;"></div>
       <div class="status-line" id="statusLine"></div>
     </section>
 
@@ -478,7 +479,8 @@ function computeProjectSummary(scope){
     const avail = todayRows.reduce((a,r)=>a+r.available,0);
     const shortage = req - avail;
     const pct = req ? shortage/req : 0;
-    return {project:p, required:req, available:avail, shortage, pct, fulfil: req ? avail/req : 1, latestDate};
+    const bd = sumBreakdown(todayRows);
+    return {project:p, required:req, available:avail, shortage, pct, fulfil: req ? avail/req : 1, latestDate, bd};
   }).sort((a,b) => b.pct - a.pct);
 }
 
@@ -488,16 +490,18 @@ function computeTradeSummary(scoped){
   const todayRows = scoped.filter(r => r.dateKey === todayKey && r.trade);
   const byTrade = {};
   todayRows.forEach(r => {
-    if(!byTrade[r.trade]) byTrade[r.trade] = {required:0, available:0, lines:0};
+    if(!byTrade[r.trade]) byTrade[r.trade] = {required:0, available:0, lines:0, rows:[]};
     byTrade[r.trade].required += r.required;
     byTrade[r.trade].available += r.available;
     byTrade[r.trade].lines += 1;
+    byTrade[r.trade].rows.push(r);
   });
   return Object.entries(byTrade).map(([trade,v]) => ({
     trade, required:v.required, available:v.available,
     shortage: v.required-v.available,
     pct: v.required ? (v.required-v.available)/v.required : 0,
-    lines: v.lines
+    lines: v.lines,
+    bd: sumBreakdown(v.rows)
   })).sort((a,b) => b.shortage - a.shortage);
 }
 
@@ -566,20 +570,22 @@ function computeContractorSummary(scoped){
   const todayKey = dayKey(latestDate);
   const byContractor = {};
   scoped.filter(r => r.contractor && r.dateKey === todayKey).forEach(r => {
-    if(!byContractor[r.contractor]) byContractor[r.contractor] = {contact:'', siteContactName:'', required:0, available:0, projects:new Set(), activities:new Set()};
+    if(!byContractor[r.contractor]) byContractor[r.contractor] = {contact:'', siteContactName:'', required:0, available:0, projects:new Set(), activities:new Set(), rows:[]};
     byContractor[r.contractor].required += r.required;
     byContractor[r.contractor].available += r.available;
     if(r.contact) byContractor[r.contractor].contact = r.contact;
     if(r.siteContactName) byContractor[r.contractor].siteContactName = r.siteContactName;
     byContractor[r.contractor].projects.add(r.project);
     if(r.activity) byContractor[r.contractor].activities.add(r.activity);
+    byContractor[r.contractor].rows.push(r);
   });
   return Object.entries(byContractor).map(([name,v]) => ({
     name, contact:v.contact, siteContactName:v.siteContactName, required:v.required, available:v.available,
     shortage: v.required-v.available,
     pct: v.required ? (v.required-v.available)/v.required : 0,
     projects: [...v.projects].join(", "),
-    activities: [...v.activities].join(", ") || "—"
+    activities: [...v.activities].join(", ") || "—",
+    bd: sumBreakdown(v.rows)
   })).filter(c => c.shortage > 0).sort((a,b) => b.pct - a.pct);
 }
 
@@ -591,14 +597,16 @@ function renderProjectSummaryTable(scope){
   const maxShortage = Math.max(1, ...rows.map(r => Math.abs(r.shortage)));
   const html = `
     <div class="table-wrap"><table class="data-table">
-      <thead><tr><th>Sr.</th><th>Project</th><th class="num">Required</th><th class="num">Available</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Status</th><th class="num">Fulfilment %</th></tr></thead>
+      <thead><tr><th>Sr.</th><th>Project</th><th class="num">Required</th><th class="num">Req (Sk/Unsk)</th><th class="num">Available</th><th class="num">Avail (Sk/Unsk)</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Status</th><th class="num">Fulfilment %</th></tr></thead>
       <tbody>
         ${rows.map((r,i) => `
           <tr class="clickable-row" onclick="filterToProject('${r.project}')" title="Click to view ${r.project} only">
             <td>${i+1}</td>
             <td><b>${r.project}</b></td>
             <td class="num">${r.required.toLocaleString()}</td>
+            <td class="num">${skUnskCompact(r.bd.reqSk, r.bd.reqUnsk, r.bd.anyBreakdown)}</td>
             <td class="num">${r.available.toLocaleString()}</td>
+            <td class="num">${skUnskCompact(r.bd.availSk, r.bd.availUnsk, r.bd.anyBreakdown)}</td>
             ${dataBarCell(r.shortage, maxShortage, r.shortage>0?'#e0333f':'#1f9d55')}
             <td class="num">${(r.pct*100).toFixed(1)}%</td>
             <td>${statusPill(r.pct)}</td>
@@ -607,7 +615,9 @@ function renderProjectSummaryTable(scope){
         <tr style="background:var(--bg-soft-2);font-weight:700;">
           <td></td><td>TOTAL</td>
           <td class="num">${rows.reduce((a,r)=>a+r.required,0).toLocaleString()}</td>
+          <td colspan="1"></td>
           <td class="num">${rows.reduce((a,r)=>a+r.available,0).toLocaleString()}</td>
+          <td colspan="1"></td>
           <td class="num">${rows.reduce((a,r)=>a+r.shortage,0).toLocaleString()}</td>
           <td colspan="3"></td>
         </tr>
@@ -624,12 +634,14 @@ function renderTopAttentionTable(scope){
   }
   el('topAttentionTable').innerHTML = `
     <div class="table-wrap"><table class="data-table">
-      <thead><tr><th>Rank</th><th>Project</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Status</th></tr></thead>
+      <thead><tr><th>Rank</th><th>Project</th><th class="num">Req (Sk/Unsk)</th><th class="num">Avail (Sk/Unsk)</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Status</th></tr></thead>
       <tbody>
         ${rows.map((r,i) => `
           <tr>
             <td>${i+1}</td>
             <td><b>${r.project}</b></td>
+            <td class="num">${skUnskCompact(r.bd.reqSk, r.bd.reqUnsk, r.bd.anyBreakdown)}</td>
+            <td class="num">${skUnskCompact(r.bd.availSk, r.bd.availUnsk, r.bd.anyBreakdown)}</td>
             <td class="num">${r.shortage.toLocaleString()}</td>
             <td class="num">${(r.pct*100).toFixed(1)}%</td>
             <td>${statusPill(r.pct)}</td>
@@ -647,13 +659,15 @@ function renderTradeTable(scoped){
   const maxShortage = Math.max(1, ...rows.map(r => Math.abs(r.shortage)));
   el('tradeTable').innerHTML = `
     <div class="table-wrap"><table class="data-table">
-      <thead><tr><th>Trade</th><th class="num">Available</th><th class="num">Required</th><th class="num">Shortage</th><th class="num">Shortage %</th><th class="num"># Trade Lines Affected</th></tr></thead>
+      <thead><tr><th>Trade</th><th class="num">Available</th><th class="num">Avail (Sk/Unsk)</th><th class="num">Required</th><th class="num">Req (Sk/Unsk)</th><th class="num">Shortage</th><th class="num">Shortage %</th><th class="num"># Trade Lines Affected</th></tr></thead>
       <tbody>
         ${rows.map(r => `
           <tr>
             <td><b>${r.trade}</b></td>
             <td class="num">${r.available.toLocaleString()}</td>
+            <td class="num">${skUnskCompact(r.bd.availSk, r.bd.availUnsk, r.bd.anyBreakdown)}</td>
             <td class="num">${r.required.toLocaleString()}</td>
+            <td class="num">${skUnskCompact(r.bd.reqSk, r.bd.reqUnsk, r.bd.anyBreakdown)}</td>
             ${dataBarCell(r.shortage, maxShortage, r.shortage>0?'#e0333f':'#1f9d55')}
             <td class="num">${(r.pct*100).toFixed(1)}%</td>
             <td class="num">${r.lines}</td>
@@ -674,7 +688,7 @@ function renderContractorWatchlist(scoped){
   const maxShortage = Math.max(1, ...rows.map(r => Math.abs(r.shortage)));
   container.innerHTML = `
     <div class="table-wrap scrollable"><table class="data-table">
-      <thead><tr><th>Contractor</th><th>Site Contact</th><th>Activity</th><th class="num">Contact</th><th class="num">Available</th><th class="num">Required</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Projects Involved</th></tr></thead>
+      <thead><tr><th>Contractor</th><th>Site Contact</th><th>Activity</th><th class="num">Contact</th><th class="num">Available</th><th class="num">Avail (Sk/Unsk)</th><th class="num">Required</th><th class="num">Req (Sk/Unsk)</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Projects Involved</th></tr></thead>
       <tbody>
         ${rows.map(r => `
           <tr>
@@ -683,7 +697,9 @@ function renderContractorWatchlist(scoped){
             <td>${r.activities}</td>
             <td class="num">${r.contact||'—'}</td>
             <td class="num">${r.available.toLocaleString()}</td>
+            <td class="num">${skUnskCompact(r.bd.availSk, r.bd.availUnsk, r.bd.anyBreakdown)}</td>
             <td class="num">${r.required.toLocaleString()}</td>
+            <td class="num">${skUnskCompact(r.bd.reqSk, r.bd.reqUnsk, r.bd.anyBreakdown)}</td>
             ${dataBarCell(r.shortage, maxShortage, '#e0333f')}
             <td class="num">${(r.pct*100).toFixed(1)}%</td>
             <td>${r.projects}</td>
@@ -870,14 +886,16 @@ function computeTowerSummary(scoped){
   const todayRows = scoped.filter(r => r.dateKey === todayKey && r.tower);
   const byTower = {};
   todayRows.forEach(r => {
-    if(!byTower[r.tower]) byTower[r.tower] = {required:0, available:0};
+    if(!byTower[r.tower]) byTower[r.tower] = {required:0, available:0, rows:[]};
     byTower[r.tower].required += r.required;
     byTower[r.tower].available += r.available;
+    byTower[r.tower].rows.push(r);
   });
   return Object.entries(byTower).map(([tower,v]) => ({
     tower, required:v.required, available:v.available,
     shortage: v.required-v.available,
-    pct: v.required ? (v.required-v.available)/v.required : 0
+    pct: v.required ? (v.required-v.available)/v.required : 0,
+    bd: sumBreakdown(v.rows)
   })).sort((a,b) => b.pct - a.pct);
 }
 
@@ -942,7 +960,7 @@ function renderTowerSection(scope, scoped){
   container.innerHTML = `
     <div class="section-head"><div class="tag">Tower Level — ${scope}</div><div class="synced">${rows.length} towers, today's snapshot — click a row for activity detail</div></div>
     <div class="table-wrap"><table class="data-table">
-      <thead><tr><th></th><th>Tower</th><th class="num">Required</th><th class="num">Available</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Status</th></tr></thead>
+      <thead><tr><th></th><th>Tower</th><th class="num">Required</th><th class="num">Req (Sk/Unsk)</th><th class="num">Available</th><th class="num">Avail (Sk/Unsk)</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Status</th></tr></thead>
       <tbody>
         ${rows.map(r => {
           const safeId = safeIdFor(r.tower);
@@ -962,13 +980,15 @@ function renderTowerSection(scope, scoped){
             <td><span id="towerArrow-${safeId}" style="color:var(--ink-faint);">▸</span></td>
             <td><b>${r.tower}</b></td>
             <td class="num">${r.required.toLocaleString()}</td>
+            <td class="num">${skUnskCompact(r.bd.reqSk, r.bd.reqUnsk, r.bd.anyBreakdown)}</td>
             <td class="num">${r.available.toLocaleString()}</td>
+            <td class="num">${skUnskCompact(r.bd.availSk, r.bd.availUnsk, r.bd.anyBreakdown)}</td>
             ${dataBarCell(r.shortage, maxShortage, r.shortage>0?'#e0333f':'#1f9d55')}
             <td class="num">${(r.pct*100).toFixed(1)}%</td>
             <td>${statusPill(r.pct)}</td>
           </tr>
           <tr id="towerDetail-${safeId}" class="hidden">
-            <td colspan="7" style="background:var(--bg-soft);padding:12px 12px 12px 34px;">
+            <td colspan="9" style="background:var(--bg-soft);padding:12px 12px 12px 34px;">
               <table class="mini-table" style="margin:0;">
                 <thead><tr>${detailHeader}</tr></thead>
                 <tbody>${detailRows}</tbody>
@@ -980,7 +1000,9 @@ function renderTowerSection(scope, scoped){
           <td></td>
           <td>TOTAL</td>
           <td class="num">${rows.reduce((a,r)=>a+r.required,0).toLocaleString()}</td>
+          <td colspan="1"></td>
           <td class="num">${rows.reduce((a,r)=>a+r.available,0).toLocaleString()}</td>
+          <td colspan="1"></td>
           <td class="num">${rows.reduce((a,r)=>a+r.shortage,0).toLocaleString()}</td>
           <td colspan="2"></td>
         </tr>
@@ -1025,12 +1047,39 @@ function latestRowsFor(scoped){
   return {latestDate, todayRows: scoped.filter(r => r.dateKey === todayKey)};
 }
 
+/**
+ * Sums Required/Available Skilled+Unskilled across a set of rows.
+ * anyBreakdown=false means none of these rows have the split data (e.g. all
+ * historical, pre-migration) — callers should show a combined-only fallback
+ * in that case rather than a misleading "0 / 0" split.
+ */
+function sumBreakdown(rows){
+  let reqSk=0, reqUnsk=0, availSk=0, availUnsk=0, anyBreakdown=false;
+  rows.forEach(r => {
+    if(r.reqSkilled !== null || r.reqUnskilled !== null || r.availSkilled !== null || r.availUnskilled !== null){
+      anyBreakdown = true;
+      reqSk += r.reqSkilled || 0;
+      reqUnsk += r.reqUnskilled || 0;
+      availSk += r.availSkilled || 0;
+      availUnsk += r.availUnskilled || 0;
+    }
+  });
+  return {reqSk, reqUnsk, availSk, availUnsk, anyBreakdown};
+}
+
+/** Compact "12 / 8" style cell for a table column, "—" if no breakdown exists. */
+function skUnskCompact(sk, unsk, hasBreakdown){
+  if(!hasBreakdown) return '—';
+  return `${sk.toLocaleString()} <span class="hint">Sk</span> / ${unsk.toLocaleString()} <span class="hint">Unsk</span>`;
+}
+
 function renderHeroKPIs(scoped){
   const {latestDate, todayRows} = latestRowsFor(scoped);
   const req = todayRows.reduce((a,r)=>a+r.required,0);
   const avail = todayRows.reduce((a,r)=>a+r.available,0);
   const shortage = req - avail;
   const fulfil = req ? avail/req : 0;
+  const bd = sumBreakdown(todayRows);
 
   const critical = PROJECTS.map(p => {
     const rows = RAW.filter(r => r.project === p);
@@ -1047,6 +1096,13 @@ function renderHeroKPIs(scoped){
     <div class="kpi-cell" style="--accent:${critical>0?'var(--red)':'var(--green)'}"><div class="num" style="color:${critical>0?'var(--red)':'var(--ink)'}">${critical}</div><div class="lbl">Critical Projects</div></div>
     <div class="kpi-cell" style="--accent:var(--ink)"><div class="num">${PROJECTS.length}</div><div class="lbl">Projects tracked</div></div>
   `;
+
+  const breakdownLine = document.getElementById('kpiBreakdownLine');
+  if(breakdownLine){
+    breakdownLine.innerHTML = bd.anyBreakdown
+      ? `<b>Skilled</b> — Required ${bd.reqSk.toLocaleString()}, Available ${bd.availSk.toLocaleString()} &nbsp;|&nbsp; <b>Unskilled</b> — Required ${bd.reqUnsk.toLocaleString()}, Available ${bd.availUnsk.toLocaleString()}`
+      : `Skilled/Unskilled breakdown not available for this scope yet — only new PM Portal submissions carry this split.`;
+  }
 }
 
 function computeHealth(scoped){
@@ -1131,10 +1187,15 @@ function renderStatCards(scoped){
   const daily = groupDaily(scoped);
   const last7 = daily.slice(-7);
   const avgShortage7 = last7.length ? last7.reduce((a,d)=>a+(d.required-d.available),0)/last7.length : 0;
+  const bd = sumBreakdown(todayRows);
 
   const cards = [
-    {label:'Required', value:req.toLocaleString(), sub:`as of ${fmtDate(latestDate)}`, color:'var(--blue)', spark: daily.slice(-14).map(d=>d.required)},
-    {label:'Available', value:avail.toLocaleString(), sub:`Fulfilment ${(fulfil*100).toFixed(1)}%`, color:'var(--green)', spark: daily.slice(-14).map(d=>d.available)},
+    {label:'Required', value:req.toLocaleString(),
+     sub: bd.anyBreakdown ? `Sk ${bd.reqSk.toLocaleString()} / Unsk ${bd.reqUnsk.toLocaleString()}` : `as of ${fmtDate(latestDate)}`,
+     color:'var(--blue)', spark: daily.slice(-14).map(d=>d.required)},
+    {label:'Available', value:avail.toLocaleString(),
+     sub: bd.anyBreakdown ? `Sk ${bd.availSk.toLocaleString()} / Unsk ${bd.availUnsk.toLocaleString()}` : `Fulfilment ${(fulfil*100).toFixed(1)}%`,
+     color:'var(--green)', spark: daily.slice(-14).map(d=>d.available)},
     {label:'Shortage', value:shortage.toLocaleString(), sub:'today, org/scope total', color:'var(--red)', spark: daily.slice(-14).map(d=>d.required-d.available)},
     {label:'7-Day Avg Shortage', value:avgShortage7.toFixed(1), sub:'trailing week', color:'var(--gold)', spark: movingAverage(daily.slice(-21).map(d=>d.required-d.available),7).slice(-14)},
     {label:'Fulfilment %', value:(fulfil*100).toFixed(1)+'%', sub:'today, current filter', color:'var(--blue)', spark: daily.slice(-14).map(d=> d.required ? d.available/d.required*100 : 0)},
