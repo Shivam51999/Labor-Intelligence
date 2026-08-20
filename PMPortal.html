@@ -373,6 +373,13 @@ function unlockRequirement(id){
   noteEl.textContent = "Overriding this week's requirement — this replaces it for the rest of the week.";
 }
 
+function contactHintText(m){
+  const parts = [];
+  if(m.siteContactName) parts.push(m.siteContactName);
+  if(m.contact) parts.push(m.contact);
+  return parts.length ? parts.join(" · ") : "";
+}
+
 async function onActivityChange(id){
   const activity = el("activity-" + id).value;
   const contractorSel = el("contractor-" + id);
@@ -419,14 +426,14 @@ async function onActivityChange(id){
       textInput.placeholder = "Contractor name";
       contractorSel.replaceWith(textInput);
     } else if (matches.length === 1) {
-      contractorSel.innerHTML = `<option value="${matches[0].contractor}" selected data-contact="${matches[0].contact||''}">${matches[0].contractor}</option>`;
-      contactHint.textContent = matches[0].contact ? ("Contact: " + matches[0].contact) : "";
+      contractorSel.innerHTML = `<option value="${matches[0].contractor}" selected data-contact="${matches[0].contact||''}" data-sitename="${matches[0].siteContactName||''}">${matches[0].contractor}</option>`;
+      contactHint.textContent = contactHintText(matches[0]);
     } else {
       contractorSel.innerHTML = '<option value="">Select contractor…</option>' +
-        matches.map(m => `<option value="${m.contractor}" data-contact="${m.contact||''}">${m.contractor}</option>`).join('');
+        matches.map(m => `<option value="${m.contractor}" data-contact="${m.contact||''}" data-sitename="${m.siteContactName||''}">${m.contractor}</option>`).join('');
       contractorSel.onchange = () => {
         const opt = contractorSel.selectedOptions[0];
-        contactHint.textContent = opt.dataset.contact ? ("Contact: " + opt.dataset.contact) : "";
+        contactHint.textContent = contactHintText({contact: opt.dataset.contact, siteContactName: opt.dataset.sitename});
       };
     }
   } catch (err) {
@@ -458,12 +465,14 @@ el("submitBtn").addEventListener("click", async () => {
     const subActivity = subactEl ? subactEl.value : "";
     const contractor = contractorEl ? contractorEl.value : "";
     let contact = "";
+    let siteContactName = "";
     if (contractorEl && contractorEl.selectedOptions && contractorEl.selectedOptions[0]) {
       contact = contractorEl.selectedOptions[0].dataset.contact || "";
+      siteContactName = contractorEl.selectedOptions[0].dataset.sitename || "";
     }
     if (!activity) continue;
     rows.push({
-      activity, subActivity, contractor, contact,
+      activity, subActivity, contractor, contact, siteContactName,
       reqSkilled: el("reqSk-" + id).value, reqUnskilled: el("reqUnsk-" + id).value,
       availSkilled: el("availSk-" + id).value, availUnskilled: el("availUnsk-" + id).value,
     });
