@@ -526,12 +526,13 @@ function computeContractorPerformance(lookbackDays){
 
   const byContractor = {};
   windowRows.forEach(r => {
-    if(!byContractor[r.contractor]) byContractor[r.contractor] = {days:{}, projects:new Set(), activities:new Set(), contact:''};
+    if(!byContractor[r.contractor]) byContractor[r.contractor] = {days:{}, projects:new Set(), towers:new Set(), activities:new Set(), contact:''};
     const c = byContractor[r.contractor];
     if(!c.days[r.dateKey]) c.days[r.dateKey] = {required:0, available:0, date:r.date};
     c.days[r.dateKey].required += r.required;
     c.days[r.dateKey].available += r.available;
     c.projects.add(r.project);
+    if(r.tower) c.towers.add(r.tower);
     if(r.activity) c.activities.add(r.activity);
     if(r.contact) c.contact = r.contact;
   });
@@ -562,6 +563,7 @@ function computeContractorPerformance(lookbackDays){
       name, contact: c.contact, composite, avgFulfil, consistency, trend,
       grade, daysTracked: dailyFulfil.length,
       projects: [...c.projects].join(', '),
+      towers: [...c.towers].join(', ') || '—',
       activities: [...c.activities].join(', ') || '—'
     };
   }).filter(Boolean).sort((a,b) => b.composite - a.composite);
@@ -572,12 +574,13 @@ function computeContractorSummary(scoped){
   const todayKey = dayKey(latestDate);
   const byContractor = {};
   scoped.filter(r => r.contractor && r.dateKey === todayKey).forEach(r => {
-    if(!byContractor[r.contractor]) byContractor[r.contractor] = {contact:'', siteContactName:'', required:0, available:0, projects:new Set(), activities:new Set(), rows:[]};
+    if(!byContractor[r.contractor]) byContractor[r.contractor] = {contact:'', siteContactName:'', required:0, available:0, projects:new Set(), towers:new Set(), activities:new Set(), rows:[]};
     byContractor[r.contractor].required += r.required;
     byContractor[r.contractor].available += r.available;
     if(r.contact) byContractor[r.contractor].contact = r.contact;
     if(r.siteContactName) byContractor[r.contractor].siteContactName = r.siteContactName;
     byContractor[r.contractor].projects.add(r.project);
+    if(r.tower) byContractor[r.contractor].towers.add(r.tower);
     if(r.activity) byContractor[r.contractor].activities.add(r.activity);
     byContractor[r.contractor].rows.push(r);
   });
@@ -586,6 +589,7 @@ function computeContractorSummary(scoped){
     shortage: v.required-v.available,
     pct: v.required ? (v.required-v.available)/v.required : 0,
     projects: [...v.projects].join(", "),
+    towers: [...v.towers].join(", ") || "—",
     activities: [...v.activities].join(", ") || "—",
     bd: sumBreakdown(v.rows)
   })).filter(c => c.shortage > 0).sort((a,b) => b.pct - a.pct);
@@ -690,7 +694,7 @@ function renderContractorWatchlist(scoped){
   const maxShortage = Math.max(1, ...rows.map(r => Math.abs(r.shortage)));
   container.innerHTML = `
     <div class="table-wrap scrollable"><table class="data-table">
-      <thead><tr><th>Contractor</th><th>Site Contact</th><th>Activity</th><th class="num">Contact</th><th class="num">Available</th><th class="num">Avail (Sk/Unsk)</th><th class="num">Required</th><th class="num">Req (Sk/Unsk)</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Projects Involved</th></tr></thead>
+      <thead><tr><th>Contractor</th><th>Site Contact</th><th>Activity</th><th class="num">Contact</th><th class="num">Available</th><th class="num">Avail (Sk/Unsk)</th><th class="num">Required</th><th class="num">Req (Sk/Unsk)</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Projects Involved</th><th>Tower</th></tr></thead>
       <tbody>
         ${rows.map(r => `
           <tr>
@@ -705,6 +709,7 @@ function renderContractorWatchlist(scoped){
             ${dataBarCell(r.shortage, maxShortage, '#e0333f')}
             <td class="num">${(r.pct*100).toFixed(1)}%</td>
             <td>${r.projects}</td>
+            <td>${r.towers}</td>
           </tr>`).join('')}
       </tbody>
     </table></div>`;
@@ -712,7 +717,7 @@ function renderContractorWatchlist(scoped){
   const top5 = rows.slice(0,5);
   callContainer.innerHTML = `
     <div class="table-wrap"><table class="data-table">
-      <thead><tr><th>Rank</th><th>Contractor</th><th>Site Contact</th><th>Activity</th><th class="num">Contact</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Projects</th></tr></thead>
+      <thead><tr><th>Rank</th><th>Contractor</th><th>Site Contact</th><th>Activity</th><th class="num">Contact</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Projects</th><th>Tower</th></tr></thead>
       <tbody>
         ${top5.map((r,i) => `
           <tr>
@@ -724,6 +729,7 @@ function renderContractorWatchlist(scoped){
             <td class="num">${r.shortage.toLocaleString()}</td>
             <td class="num">${(r.pct*100).toFixed(1)}%</td>
             <td>${r.projects}</td>
+            <td>${r.towers}</td>
           </tr>`).join('')}
       </tbody>
     </table></div>`;
@@ -763,7 +769,7 @@ function renderContractorTop(){
   }
   container.innerHTML = `
     <div class="table-wrap scrollable"><table class="data-table">
-      <thead><tr><th>Rank</th><th>Contractor</th><th>Activity</th><th>Grade</th><th class="num">Score</th><th class="num">Avg Fulfilment</th><th class="num">Consistency</th><th>Trend</th><th class="num">Days Tracked</th><th>Projects</th></tr></thead>
+      <thead><tr><th>Rank</th><th>Contractor</th><th>Activity</th><th>Grade</th><th class="num">Score</th><th class="num">Avg Fulfilment</th><th class="num">Consistency</th><th>Trend</th><th class="num">Days Tracked</th><th>Projects</th><th>Tower</th></tr></thead>
       <tbody>
         ${rows.map((r,i) => {
           const trendLabel = r.trend > 0.03 ? '▲ Improving' : r.trend < -0.03 ? '▼ Declining' : '— Steady';
@@ -780,6 +786,7 @@ function renderContractorTop(){
             <td style="color:${trendColor};font-weight:600;">${trendLabel}</td>
             <td class="num">${r.daysTracked}</td>
             <td>${r.projects}</td>
+            <td>${r.towers}</td>
           </tr>`;
         }).join('')}
       </tbody>
