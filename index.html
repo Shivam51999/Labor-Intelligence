@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mangalam Landmarks — Labour Intelligence</title>
+<title>Mangalam Landmarks — Labour Intelligence · CEO Command View</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 <style>
@@ -18,6 +18,7 @@
     --ink-faint: #9aa1ab;
     --line: #e7e7e9;
     --red: #e0333f;
+    --red-deep: #a32330;
     --red-soft: #fdecec;
     --blue: #2f5fdb;
     --blue-soft: #ecf1fd;
@@ -26,168 +27,238 @@
     --green: #1f9d55;
     --green-soft: #e9f7ee;
     --shadow-sm: 0 1px 2px rgba(20,20,20,0.04), 0 4px 14px rgba(20,20,20,0.04);
+    --shadow-md: 0 8px 30px rgba(20,20,20,0.10);
     --font-head: 'Plus Jakarta Sans', sans-serif;
     --font-body: 'Inter', -apple-system, sans-serif;
     --font-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
   }
   *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
   html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);}
-  .wrap{max-width:1360px;margin:0 auto;padding:0 32px 70px;}
+  .wrap{max-width:1380px;margin:0 auto;padding:0 32px 70px;}
 
   /* ---------- Top bar ---------- */
-  .topbar{display:flex;align-items:center;justify-content:space-between;padding:20px 32px;border-bottom:1px solid var(--line);}
+  .topbar{position:sticky;top:0;z-index:50;background:rgba(255,255,255,0.92);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:space-between;padding:16px 32px;border-bottom:1px solid var(--line);}
   .brand{display:flex;align-items:center;gap:10px;}
   .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--red);}
-  .brand-text{font-family:var(--font-head);font-weight:700;font-size:17px;letter-spacing:-0.01em;}
-  .brand-sub{font-family:var(--font-body);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-faint);margin-left:10px;padding-left:10px;border-left:1px solid var(--line);}
+  .brand-text{font-family:var(--font-head);font-weight:800;font-size:16px;letter-spacing:-0.01em;}
+  .brand-sub{font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-faint);margin-left:10px;padding-left:10px;border-left:1px solid var(--line);}
   .topbar-right{display:flex;align-items:center;gap:16px;}
   .clock{font-family:var(--font-mono);font-size:12px;color:var(--ink-dim);display:flex;align-items:center;gap:6px;}
-  .clock .live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;}
-  .clock .live-dot.stale{background:var(--red);}
+  .clock .live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2.2s ease-in-out infinite;}
+  .clock .live-dot.stale{background:var(--red);animation:none;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(31,157,85,0.35);}50%{box-shadow:0 0 0 5px rgba(31,157,85,0);}}
   button.cta{
-    background:var(--red);color:#fff;border:none;border-radius:8px;padding:10px 18px;
+    background:var(--red);color:#fff;border:none;border-radius:8px;padding:9px 18px;
     font-family:var(--font-body);font-weight:600;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px;
-    transition:background .15s;
+    transition:background .15s, transform .1s;
   }
   button.cta:hover{background:#c72a35;}
+  button.cta:active{transform:scale(0.98);}
   .spin{display:none;width:11px;height:11px;border:2px solid rgba(255,255,255,0.5);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;}
   .spin.on{display:inline-block;}
   @keyframes spin{to{transform:rotate(360deg);}}
 
+  /* ---------- Section nav ---------- */
+  .section-nav{display:flex;gap:6px;overflow-x:auto;padding:0 32px;border-bottom:1px solid var(--line);background:#fff;position:sticky;top:61px;z-index:40;}
+  .section-nav a{
+    font-family:var(--font-mono);font-size:11.5px;font-weight:600;color:var(--ink-dim);text-decoration:none;
+    padding:12px 14px;border-bottom:2px solid transparent;white-space:nowrap;letter-spacing:0.02em;
+  }
+  .section-nav a b{color:var(--red);margin-right:6px;}
+  .section-nav a:hover{color:var(--ink);border-bottom-color:var(--line);}
+
   /* ---------- Hero ---------- */
-  .hero{padding:48px 0 32px;}
-  .eyebrow{display:flex;align-items:center;gap:10px;font-family:var(--font-body);font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--red);margin-bottom:18px;}
+  .hero{padding:44px 0 26px;position:relative;}
+  .hero::before{
+    content:'';position:absolute;inset:0 -32px auto -32px;height:100%;pointer-events:none;z-index:-1;
+    background:
+      linear-gradient(180deg, rgba(224,51,63,0.035), transparent 55%),
+      repeating-linear-gradient(90deg, transparent, transparent 79px, rgba(20,20,20,0.025) 80px),
+      repeating-linear-gradient(0deg, transparent, transparent 79px, rgba(20,20,20,0.025) 80px);
+  }
+  .eyebrow{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--red);margin-bottom:16px;}
   .eyebrow::before{content:'';width:22px;height:2px;background:var(--red);display:inline-block;}
-  h1{font-family:var(--font-head);font-size:44px;font-weight:400;line-height:1.08;margin:0 0 14px;letter-spacing:-0.01em;}
+  h1{font-family:var(--font-head);font-size:42px;font-weight:400;line-height:1.08;margin:0 0 12px;letter-spacing:-0.01em;}
   h1 b{font-weight:800;}
   h1 .accent{color:var(--red);font-weight:800;}
-  .hero-desc{font-family:var(--font-body);font-size:15px;color:var(--ink-dim);max-width:600px;line-height:1.55;margin:0 0 28px;}
+  .hero-desc{font-size:14.5px;color:var(--ink-dim);max-width:640px;line-height:1.55;margin:0 0 26px;}
 
   .kpi-strip{display:flex;border:2px solid var(--ink);border-radius:14px;overflow:hidden;background:linear-gradient(180deg,#fff,var(--bg-soft));box-shadow:0 6px 24px rgba(20,20,20,0.09);}
-  .kpi-cell{flex:1;padding:22px 22px 20px;border-right:1px solid var(--line);border-top:3px solid var(--accent,var(--ink));position:relative;}
-  .kpi-cell:first-child{border-top-left-radius:12px;}
-  .kpi-cell:last-child{border-right:none;border-top-right-radius:12px;}
-  .kpi-cell .num{font-family:var(--font-mono);font-weight:800;font-size:32px;letter-spacing:-0.02em;line-height:1;}
-  .kpi-cell .lbl{font-size:11.5px;color:var(--ink-dim);margin-top:7px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;}
-  .kpi-cell .delta{font-size:11px;margin-top:6px;font-family:var(--font-mono);}
-  .kpi-cell .delta.up{color:var(--red);} .kpi-cell .delta.down{color:var(--green);}
+  .kpi-cell{flex:1;padding:20px 20px 18px;border-right:1px solid var(--line);border-top:3px solid var(--accent,var(--ink));}
+  .kpi-cell:last-child{border-right:none;}
+  .kpi-cell .num{font-family:var(--font-mono);font-weight:700;font-size:30px;letter-spacing:-0.02em;line-height:1;}
+  .kpi-cell .lbl{font-size:11px;color:var(--ink-dim);margin-top:7px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;}
+  .kpi-cell .sub{font-size:10.5px;color:var(--ink-faint);margin-top:4px;font-family:var(--font-mono);}
+  .status-line{margin-top:12px;font-size:12px;color:var(--ink-faint);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 
-  .status-line{margin-top:14px;font-size:12px;color:var(--ink-faint);display:flex;align-items:center;gap:8px;}
+  /* ---------- Executive brief ---------- */
+  .brief-card{border:1.5px solid var(--ink);border-radius:14px;background:#fff;box-shadow:var(--shadow-sm);margin-top:18px;overflow:hidden;}
+  .brief-head{display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--bg-soft);}
+  .brief-head .bh-tag{font-family:var(--font-mono);font-size:10.5px;font-weight:700;letter-spacing:0.1em;color:#fff;background:var(--ink);border-radius:5px;padding:3px 8px;}
+  .brief-head .bh-title{font-family:var(--font-head);font-weight:700;font-size:14px;}
+  .brief-body{padding:8px 20px 14px;}
+  .brief-item{display:flex;gap:12px;padding:10px 0;border-bottom:1px dashed var(--line);font-size:13px;line-height:1.5;align-items:flex-start;}
+  .brief-item:last-child{border-bottom:none;}
+  .brief-item .b-icon{flex-shrink:0;width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12px;margin-top:1px;}
+  .brief-item.risk .b-icon{background:var(--red-soft);}
+  .brief-item.win .b-icon{background:var(--green-soft);}
+  .brief-item.watch .b-icon{background:var(--gold-soft);}
+  .brief-item.info .b-icon{background:var(--blue-soft);}
+  .brief-item b{font-weight:700;}
+  .brief-item .b-metric{font-family:var(--font-mono);font-weight:600;}
 
   /* ---------- Filter bar ---------- */
-  .filter-bar{display:flex;gap:14px;align-items:center;margin:28px 0;flex-wrap:wrap;}
+  .filter-bar{display:flex;gap:14px;align-items:center;margin:26px 0 6px;flex-wrap:wrap;}
   .filter-bar label{font-size:11px;color:var(--ink-faint);font-weight:700;text-transform:uppercase;letter-spacing:0.06em;}
   select{
     background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:8px;
     padding:9px 14px;font-family:var(--font-body);font-size:13px;min-width:170px;
   }
+  .scope-chip{font-family:var(--font-mono);font-size:11px;color:var(--red);background:var(--red-soft);border-radius:100px;padding:5px 12px;font-weight:600;display:none;cursor:pointer;}
+  .scope-chip.on{display:inline-block;}
 
-  /* ---------- Section header (HQ style) ---------- */
-  .section-head{display:flex;align-items:center;justify-content:space-between;margin:38px 0 18px;}
-  .section-head .tag{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-dim);}
-  .section-head .tag::before{content:'';width:18px;height:2px;background:var(--red);display:inline-block;}
+  /* ---------- Section header ---------- */
+  .section-head{display:flex;align-items:baseline;justify-content:space-between;margin:44px 0 6px;scroll-margin-top:120px;}
+  .section-head .tag{display:flex;align-items:center;gap:12px;font-family:var(--font-head);font-size:19px;font-weight:800;color:var(--ink);letter-spacing:-0.01em;}
+  .section-head .tag .no{font-family:var(--font-mono);font-size:11px;font-weight:700;color:var(--red);letter-spacing:0.08em;border:1px solid var(--red);border-radius:5px;padding:2px 7px;}
   .section-head .synced{font-size:11px;color:var(--ink-faint);font-family:var(--font-mono);}
+  .section-sub{font-size:12.5px;color:var(--ink-dim);margin:0 0 16px;max-width:720px;}
 
-  /* ---------- Health hero (Realtech-style, light) ---------- */
-  .health-card{border:1px solid var(--line);border-radius:14px;padding:28px 30px;background:linear-gradient(180deg,#fff,var(--bg-soft));box-shadow:var(--shadow-sm);display:flex;gap:36px;align-items:center;flex-wrap:wrap;}
-  .gauge-wrap{display:flex;flex-direction:column;align-items:center;flex-shrink:0;}
-  .gauge{width:168px;height:168px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative;}
-  .gauge-inner{width:130px;height:130px;border-radius:50%;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px var(--line);}
-  .gauge-inner .score{font-family:var(--font-mono);font-weight:700;font-size:34px;}
+  /* ---------- Health: gauge + project grid ---------- */
+  .health-layout{display:grid;grid-template-columns:320px 1fr;gap:16px;align-items:stretch;}
+  @media (max-width:1000px){.health-layout{grid-template-columns:1fr;}}
+  .health-card{border:1px solid var(--line);border-radius:14px;padding:24px;background:linear-gradient(180deg,#fff,var(--bg-soft));box-shadow:var(--shadow-sm);display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .gauge{width:170px;height:170px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+  .gauge-inner{width:132px;height:132px;border-radius:50%;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px var(--line);}
+  .gauge-inner .score{font-family:var(--font-mono);font-weight:700;font-size:36px;}
   .gauge-inner .score-lbl{font-size:10px;color:var(--ink-faint);letter-spacing:0.08em;text-transform:uppercase;margin-top:2px;}
-  .gauge-caption{margin-top:12px;font-size:12px;color:var(--ink-dim);text-align:center;max-width:170px;}
-
-  .metric-bars{flex:1;min-width:260px;}
-  .metric-row{display:grid;grid-template-columns:150px 1fr 40px;align-items:center;gap:12px;padding:7px 0;}
-  .metric-row .m-label{font-size:12.5px;color:var(--ink-dim);}
+  .gauge-caption{margin-top:14px;font-size:12px;color:var(--ink-dim);text-align:center;max-width:230px;}
+  .metric-bars{width:100%;margin-top:16px;}
+  .metric-row{display:grid;grid-template-columns:120px 1fr 34px;align-items:center;gap:10px;padding:5px 0;}
+  .metric-row .m-label{font-size:11.5px;color:var(--ink-dim);}
   .metric-row .m-track{height:6px;border-radius:4px;background:var(--bg-soft-2);overflow:hidden;}
-  .metric-row .m-fill{height:100%;border-radius:4px;}
-  .metric-row .m-val{font-family:var(--font-mono);font-size:12px;text-align:right;color:var(--ink-dim);}
+  .metric-row .m-fill{height:100%;border-radius:4px;transition:width .5s ease;}
+  .metric-row .m-val{font-family:var(--font-mono);font-size:11.5px;text-align:right;color:var(--ink-dim);}
 
-  /* ---------- Stat cards with sparkline ---------- */
+  .proj-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:12px;}
+  .proj-card{
+    border:1px solid var(--line);border-radius:12px;padding:16px;background:#fff;box-shadow:var(--shadow-sm);
+    border-top:3px solid var(--accent,var(--ink));cursor:pointer;transition:transform .12s, box-shadow .12s;position:relative;
+  }
+  .proj-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);}
+  .proj-card .p-name{font-family:var(--font-head);font-weight:700;font-size:14px;padding-right:52px;}
+  .proj-card .p-score{
+    position:absolute;top:14px;right:14px;font-family:var(--font-mono);font-weight:700;font-size:17px;
+    width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;color:#fff;background:var(--accent,var(--ink));
+  }
+  .proj-card .p-row{display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink-dim);margin-top:8px;}
+  .proj-card .p-row .v{font-family:var(--font-mono);font-weight:600;color:var(--ink);}
+  .proj-card .p-foot{margin-top:10px;font-size:10.5px;font-family:var(--font-mono);color:var(--ink-faint);display:flex;justify-content:space-between;align-items:center;}
+  .proj-card .p-grade{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;padding:3px 9px;border-radius:100px;}
+
+  /* ---------- Heatmap ---------- */
+  .heatmap-wrap{border:1px solid var(--line);border-radius:12px;background:#fff;box-shadow:var(--shadow-sm);padding:18px 20px;overflow-x:auto;}
+  .heatmap{display:grid;gap:4px;font-family:var(--font-mono);}
+  .hm-label{font-size:11px;color:var(--ink-dim);display:flex;align-items:center;white-space:nowrap;padding-right:8px;font-family:var(--font-body);font-weight:600;}
+  .hm-date{font-size:9.5px;color:var(--ink-faint);text-align:center;transform:rotate(-40deg);height:32px;display:flex;align-items:flex-end;justify-content:center;}
+  .hm-cell{height:26px;border-radius:5px;position:relative;cursor:default;transition:transform .1s;}
+  .hm-cell:hover{transform:scale(1.12);z-index:2;box-shadow:var(--shadow-md);}
+  .hm-legend{display:flex;gap:14px;align-items:center;margin-top:14px;font-size:11px;color:var(--ink-dim);flex-wrap:wrap;}
+  .hm-legend .sw{width:14px;height:14px;border-radius:4px;display:inline-block;vertical-align:-2px;margin-right:5px;}
+
+  /* ---------- Stat cards ---------- */
   .stat-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;}
+  @media (max-width:980px){.stat-grid{grid-template-columns:repeat(2,1fr);}}
   .stat-card{border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:#fff;box-shadow:var(--shadow-sm);border-top:3px solid var(--accent,var(--red));}
   .stat-card .lbl{font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;}
-  .stat-card .val{font-family:var(--font-mono);font-weight:700;font-size:22px;margin-top:8px;letter-spacing:-0.01em;}
+  .stat-card .val{font-family:var(--font-mono);font-weight:700;font-size:22px;margin-top:8px;}
   .stat-card .sub{font-size:11px;color:var(--ink-dim);margin-top:4px;}
   .stat-card svg{width:100%;height:32px;margin-top:10px;display:block;}
 
-  /* ---------- Chart panels ---------- */
+  /* ---------- Panels & charts ---------- */
   .chart-grid{display:grid;grid-template-columns:1.7fr 1fr;gap:16px;}
-  @media (max-width:980px){.chart-grid{grid-template-columns:1fr;} .stat-grid{grid-template-columns:repeat(2,1fr);}}
+  .chart-grid.even{grid-template-columns:1fr 1fr;}
+  @media (max-width:980px){.chart-grid,.chart-grid.even{grid-template-columns:1fr;}}
   .panel{border:1px solid var(--line);border-radius:12px;padding:20px 22px;background:#fff;box-shadow:var(--shadow-sm);}
   .panel h2{font-family:var(--font-head);font-size:15px;font-weight:700;margin:0 0 2px;}
-  .panel .desc{font-size:12px;color:var(--ink-dim);margin-bottom:14px;}
+  .panel .desc{font-size:12px;color:var(--ink-dim);margin:0 0 14px;}
   .chart-box{position:relative;height:280px;}
+  .chart-box.tall{height:320px;}
   .legend-row{display:flex;gap:16px;font-size:11px;color:var(--ink-dim);margin-top:10px;flex-wrap:wrap;}
   .legend-row span{display:inline-flex;align-items:center;gap:6px;}
   .swatch{width:9px;height:9px;border-radius:2px;display:inline-block;}
 
-  /* ---------- Risk cards (HQ portal-card style) ---------- */
-  .risk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-  @media (max-width:980px){.risk-grid{grid-template-columns:1fr;}}
-  .risk-card{border:1px solid var(--line);border-radius:12px;padding:18px 20px;background:#fff;box-shadow:var(--shadow-sm);border-top:3px solid var(--accent,var(--red));position:relative;}
-  .risk-card .pname{font-family:var(--font-head);font-weight:700;font-size:15px;}
-  .risk-card .ptag{font-size:11px;color:var(--ink-faint);font-family:var(--font-mono);margin-top:2px;}
-  .pill{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;padding:4px 10px;border-radius:100px;text-transform:uppercase;letter-spacing:0.04em;position:absolute;top:16px;right:16px;}
-  .pill.crit{background:var(--red-soft);color:var(--red);}
-  .pill.watch{background:var(--gold-soft);color:var(--gold);}
-  .pill.ok{background:var(--green-soft);color:var(--green);}
-  .pill .pdot{width:6px;height:6px;border-radius:50%;background:currentColor;}
-  .risk-trend{margin-top:14px;font-family:var(--font-mono);font-size:13px;color:var(--ink-dim);}
-  .risk-trend b{color:var(--ink);}
+  /* ---------- Predictive cards ---------- */
+  .predict-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;}
+  .predict-card{border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:#fff;box-shadow:var(--shadow-sm);border-left:4px solid var(--accent,var(--ink));}
+  .predict-card .pc-proj{font-family:var(--font-head);font-weight:700;font-size:14px;}
+  .predict-card .pc-line{font-size:12px;color:var(--ink-dim);margin-top:8px;line-height:1.5;}
+  .predict-card .pc-line b{font-family:var(--font-mono);color:var(--ink);}
+  .predict-card .pc-eta{margin-top:10px;font-family:var(--font-mono);font-size:12.5px;font-weight:700;}
 
-  .empty, .error-box{text-align:center;padding:50px 20px;color:var(--ink-dim);font-size:13px;}
-  .error-box{color:var(--red);border:1px dashed var(--red);border-radius:12px;background:var(--red-soft);}
-  .error-box code{display:block;margin-top:10px;font-family:var(--font-mono);font-size:11px;color:var(--ink-dim);word-break:break-all;}
-
-  footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);color:var(--ink-faint);font-size:11px;text-align:center;font-family:var(--font-mono);}
-
-  /* ---------- Data tables (spreadsheet-style reports) ---------- */
+  /* ---------- Tables ---------- */
   .data-table{width:100%;border-collapse:collapse;font-size:13px;}
   .data-table th{
-    background:#1F4E78;color:#fff;text-align:left;padding:10px 12px;font-size:11.5px;
+    background:#1F4E78;color:#fff;text-align:left;padding:10px 12px;font-size:11px;
     text-transform:uppercase;letter-spacing:0.04em;font-weight:600;
   }
   .data-table th.num{text-align:right;}
   .data-table td{padding:9px 12px;border-bottom:1px solid var(--line);}
   .data-table tr:last-child td{border-bottom:none;}
   .data-table tr:hover td{background:var(--bg-soft);}
+  .data-table .num{font-family:var(--font-mono);text-align:right;}
   .clickable-row{cursor:pointer;}
   .clickable-row:hover td{background:var(--blue-soft) !important;}
-  .tab-btn{
-    background:#fff;color:var(--ink-dim);border:1px solid var(--line);border-radius:8px;
-    padding:9px 16px;font-family:var(--font-body);font-weight:600;font-size:13px;cursor:pointer;
-  }
-  .tab-btn.active{background:var(--ink);color:#fff;border-color:var(--ink);}
-  .grade-pill{display:inline-block;font-size:11px;font-weight:700;padding:4px 12px;border-radius:100px;text-transform:uppercase;letter-spacing:0.03em;}
-  .grade-pill.excellent{background:var(--green-soft);color:var(--green);}
-  .grade-pill.good{background:var(--blue-soft);color:var(--blue);}
-  .grade-pill.watch{background:var(--gold-soft);color:var(--gold);}
-  .grade-pill.poor{background:var(--red-soft);color:var(--red);}
-  .hint{font-size:11px;color:var(--ink-faint);}
+  .table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--line);}
+  .table-wrap.scrollable{max-height:430px;overflow-y:auto;}
+  .table-wrap.scrollable thead th{position:sticky;top:0;z-index:1;}
   .mini-table{width:100%;border-collapse:collapse;font-size:12.5px;}
   .mini-table th{background:none !important;color:var(--ink-dim) !important;text-align:left;font-size:10.5px;text-transform:uppercase;padding:4px 8px;border-bottom:1px solid var(--line);font-weight:600;}
   .mini-table td{padding:6px 8px;border-bottom:1px solid var(--line);}
-  .mini-table td.num, .mini-table th.num{text-align:right;}
-  .data-table .num{font-family:var(--font-mono);text-align:right;}
+  .mini-table td.num, .mini-table th.num{text-align:right;font-family:var(--font-mono);}
   .databar-cell{position:relative;}
-  .databar-cell .bar{
-    position:absolute;left:0;top:50%;transform:translateY(-50%);height:60%;border-radius:3px;opacity:0.28;z-index:0;
-  }
+  .databar-cell .bar{position:absolute;left:0;top:50%;transform:translateY(-50%);height:60%;border-radius:3px;opacity:0.28;z-index:0;}
   .databar-cell .val{position:relative;z-index:1;font-family:var(--font-mono);font-weight:600;}
   .status-pill{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:100px;text-transform:uppercase;letter-spacing:0.03em;}
   .status-pill.critical{background:var(--red-soft);color:var(--red);}
   .status-pill.moderate{background:var(--gold-soft);color:var(--gold);}
   .status-pill.low{background:#eef4ff;color:var(--blue);}
   .status-pill.ok{background:var(--green-soft);color:var(--green);}
-  .table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--line);}
-  .table-wrap.scrollable{max-height:420px;overflow-y:auto;}
-  .table-wrap.scrollable thead th{position:sticky;top:0;z-index:1;}
-  .table-wrap table{margin:0;}
+  .grade-pill{display:inline-block;font-size:11px;font-weight:700;padding:4px 12px;border-radius:100px;text-transform:uppercase;letter-spacing:0.03em;}
+  .grade-pill.excellent{background:var(--green-soft);color:var(--green);}
+  .grade-pill.good{background:var(--blue-soft);color:var(--blue);}
+  .grade-pill.watch{background:var(--gold-soft);color:var(--gold);}
+  .grade-pill.poor{background:var(--red-soft);color:var(--red);}
+  .tab-btn{background:#fff;color:var(--ink-dim);border:1px solid var(--line);border-radius:8px;padding:9px 16px;font-family:var(--font-body);font-weight:600;font-size:13px;cursor:pointer;}
+  .tab-btn.active{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .hint{font-size:11px;color:var(--ink-faint);}
+  .cat-tag{display:inline-block;font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:100px;background:var(--gold-soft);color:var(--gold);text-transform:uppercase;letter-spacing:0.04em;margin-left:6px;vertical-align:1px;}
+
   .highlight-box{border:1.5px dashed var(--red);border-radius:12px;background:var(--red-soft);padding:4px;margin-bottom:16px;}
   .highlight-box .table-wrap{border:none;border-radius:8px;}
   .highlight-title{display:flex;align-items:center;gap:8px;padding:14px 16px 6px;font-family:var(--font-head);font-weight:700;font-size:14px;color:var(--red);}
+
+  /* ---------- Challenge cards ---------- */
+  .challenge-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  @media (max-width:980px){.challenge-grid{grid-template-columns:1fr;}}
+  .challenge-card{border:1px solid var(--line);border-radius:12px;background:#fff;box-shadow:var(--shadow-sm);overflow:hidden;}
+  .challenge-card .ch-head{display:flex;align-items:center;gap:9px;padding:13px 16px;border-bottom:1px solid var(--line);background:var(--bg-soft);font-family:var(--font-head);font-weight:700;font-size:13.5px;}
+  .challenge-card .ch-head .ch-count{margin-left:auto;font-family:var(--font-mono);font-size:12px;font-weight:700;color:#fff;background:var(--red);border-radius:100px;padding:2px 10px;}
+  .challenge-card .ch-head .ch-count.zero{background:var(--green);}
+  .challenge-card ul{list-style:none;margin:0;padding:6px 16px 12px;}
+  .challenge-card li{padding:9px 0;border-bottom:1px dashed var(--line);font-size:12.5px;line-height:1.5;color:var(--ink-dim);}
+  .challenge-card li:last-child{border-bottom:none;}
+  .challenge-card li b{color:var(--ink);}
+  .challenge-card li .m{font-family:var(--font-mono);font-weight:600;}
+  .challenge-card .ch-empty{padding:18px 16px;font-size:12.5px;color:var(--ink-faint);}
+
+  .empty, .error-box{text-align:center;padding:50px 20px;color:var(--ink-dim);font-size:13px;}
+  .error-box{color:var(--red);border:1px dashed var(--red);border-radius:12px;background:var(--red-soft);}
+  .error-box code{display:block;margin-top:10px;font-family:var(--font-mono);font-size:11px;color:var(--ink-dim);word-break:break-all;}
+  .hidden{display:none;}
+
+  footer{margin-top:48px;padding-top:20px;border-top:1px solid var(--line);color:var(--ink-faint);font-size:11px;text-align:center;font-family:var(--font-mono);line-height:1.7;}
 </style>
 </head>
 <body>
@@ -196,7 +267,7 @@
     <div class="brand">
       <span class="dot"></span>
       <span class="brand-text">Mangalam Landmarks</span>
-      <span class="brand-sub">Labour Intelligence</span>
+      <span class="brand-sub">Labour Intelligence · CEO Command View</span>
     </div>
     <div class="topbar-right">
       <div class="clock"><span class="live-dot" id="freshDot"></span><span id="freshText">checking…</span></div>
@@ -204,14 +275,28 @@
     </div>
   </div>
 
+  <nav class="section-nav" id="sectionNav">
+    <a href="#sec-health"><b>01</b>Health</a>
+    <a href="#sec-labour"><b>02</b>Labour Position</a>
+    <a href="#sec-category"><b>03</b>Categories</a>
+    <a href="#sec-predict"><b>04</b>Predictive</a>
+    <a href="#sec-projects"><b>05</b>Projects &amp; Towers</a>
+    <a href="#sec-contractors"><b>06</b>Contractors</a>
+    <a href="#sec-challenges"><b>07</b>Site Challenges</a>
+  </nav>
+
   <div class="wrap">
     <section class="hero">
-      <div class="eyebrow">Mangalam Landmarks · Command Hub</div>
-      <h1>Labour, tracked.<br><span class="accent">Before it's short.</span></h1>
+      <div class="eyebrow">Engineering &amp; Construction · Command Hub</div>
+      <h1>Every site. Every gang.<br><span class="accent">Before it slips.</span></h1>
       <p class="hero-desc" id="subline">Loading live data from Master Raw…</p>
       <div class="kpi-strip" id="kpiStrip"></div>
       <div class="status-line" id="kpiBreakdownLine" style="margin-top:10px;"></div>
       <div class="status-line" id="statusLine"></div>
+      <div class="brief-card" id="briefCard" style="display:none;">
+        <div class="brief-head"><span class="bh-tag">AUTO-BRIEF</span><span class="bh-title">What needs your attention today</span></div>
+        <div class="brief-body" id="briefBody"></div>
+      </div>
     </section>
 
     <div class="filter-bar">
@@ -223,6 +308,7 @@
         <option value="14" selected>14 days</option>
         <option value="30">30 days</option>
       </select>
+      <span class="scope-chip" id="scopeChip" onclick="clearScope()" title="Click to go back to org-wide view">✕ clear focus</span>
     </div>
 
     <div id="content">
@@ -230,14 +316,21 @@
     </div>
 
     <footer>
-      Source: Google Sheets — CEO Command Center (Master Raw, published to web) · Refreshes on load and on demand ·
-      Forecast is a simple linear trend on recent daily totals — a planning signal, not a guarantee.
+      Source: Google Sheets — CEO Command Center (Master Raw, published to web) · Refreshes on load and on demand<br>
+      Health score = 45% today's fulfilment + 20% weekly momentum + 20% 7-day consistency + 15% data freshness ·
+      Forecast &amp; days-to-critical use a linear trend on recent daily totals — a planning signal, not a guarantee.
     </footer>
   </div>
 
 <script>
 const PROXY_URL = "/api/csv-proxy";
 const DIRECT_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRaTMMYz9tevz4FJkN5rpdfb5UD955CBW-j_dwyHNZ4rTZUHljBRsVTL7U1JVtQh9p_EsBxvfU56RBd/pub?gid=1518278826&single=true&output=csv";
+
+// Labour categories that ARE unskilled by definition (mirrors PM Portal)
+const UNSKILLED_LABOR_TYPES = ["m/c", "f/c"];
+function isUnskilledType(lt){
+  return UNSKILLED_LABOR_TYPES.includes(String(lt||"").toLowerCase().replace(/\s+/g,""));
+}
 
 let RAW = [];
 let PROJECTS = [];
@@ -246,6 +339,7 @@ let charts = {};
 const el = (id) => document.getElementById(id);
 function setStatus(msg){ el('subline').textContent = msg; }
 
+/* =============================== DATA LAYER =============================== */
 function parseDate(v){
   if(v === null || v === undefined || v === "") return null;
   if(typeof v === "number"){
@@ -351,13 +445,12 @@ function processRows(rows, headers){
   const colTower = findCol(headers, ["tower"]);
   const colDate = findCol(headers, ["date"]);
   const colActivity = findCol(headers, ["activity"]);
-  const colTrade = findCol(headers, ["trade", "sub activity"]);
   const colReq = findCol(headers, ["required"]);
   const colAvail = findCol(headers, ["available"]);
   const colContractor = findCol(headers, ["contractor"]);
   const colContact = findCol(headers, ["contact"]);
   const colSiteName = findCol(headers, ["site contact name"]);
-  const colLaborType = findCol(headers, ["labor type"]);
+  const colLaborType = findCol(headers, ["labor type", "labour type"]);
   const colReqSk = findCol(headers, ["required skilled"]);
   const colReqUnsk = findCol(headers, ["required unskilled"]);
   const colAvailSk = findCol(headers, ["available skilled"]);
@@ -383,16 +476,12 @@ function processRows(rows, headers){
       project: proj,
       tower: colTower ? (row[colTower]||"").trim() : "",
       activity: colActivity ? (row[colActivity]||"").trim() : "",
-      trade: colTrade ? (row[colTrade]||"").trim() : "",
       contractor: colContractor ? (row[colContractor]||"").trim() : "",
       contact: colContact ? (row[colContact]||"").trim() : "",
       siteContactName: colSiteName ? (row[colSiteName]||"").trim() : "",
       laborType: colLaborType ? (row[colLaborType]||"").trim() : "",
       date: d, dateKey: dayKey(d),
       required: req, available: avail, shortage: req - avail,
-      // Skilled/Unskilled breakdown — NaN (not 0) when the columns don't exist
-      // or weren't filled in for this row, so callers can tell "no data" apart
-      // from "genuinely zero".
       reqSkilled: isNaN(reqSk) ? null : reqSk,
       reqUnskilled: isNaN(reqUnsk) ? null : reqUnsk,
       availSkilled: isNaN(availSk) ? null : availSk,
@@ -414,7 +503,7 @@ function processRows(rows, headers){
   const today = new Date(); today.setUTCHours(0,0,0,0);
   const latestUTC = new Date(Date.UTC(latest.getUTCFullYear(), latest.getUTCMonth(), latest.getUTCDate()));
   const ageDays = Math.round((today - latestUTC) / 86400000);
-  setStatus(`Sales, sites, and shortages — all connected in one place, with a 14-day forecast on where labour runs thin next.`);
+  setStatus(`Labour position, contractor accountability, and site risk across every Mangalam project — analytical today, predictive for the next two weeks.`);
   el('statusLine').textContent = `${cleaned.length} log entries across ${PROJECTS.length} projects · latest ${fmtDate(latest)}`;
   if(ageDays <= 1){
     el('freshDot').classList.remove('stale');
@@ -431,6 +520,7 @@ function populateProjectFilter(){
     PROJECTS.map(p => `<option value="${p}">${p}</option>`).join('');
 }
 
+/* =============================== ANALYTICS =============================== */
 function linearRegression(xs, ys){
   const n = xs.length;
   const sumX = xs.reduce((a,b)=>a+b,0), sumY = ys.reduce((a,b)=>a+b,0);
@@ -452,449 +542,142 @@ function movingAverage(vals, window){
 function groupDaily(rows){
   const map = new Map();
   for(const r of rows){
-    if(!map.has(r.dateKey)) map.set(r.dateKey, {date:r.date, required:0, available:0});
+    if(!map.has(r.dateKey)) map.set(r.dateKey, {date:r.date, dateKey:r.dateKey, required:0, available:0});
     const e = map.get(r.dateKey);
     e.required += r.required;
     e.available += r.available;
   }
   return [...map.values()].sort((a,b) => a.date - b.date);
 }
-
-function dataBarCell(value, max, color){
-  const pct = max > 0 ? Math.min(100, Math.abs(value)/max*100) : 0;
-  return `<td class="num databar-cell"><div class="bar" style="width:${pct}%;background:${color};"></div><span class="val">${value.toLocaleString()}</span></td>`;
+function latestRowsFor(scoped){
+  const latestDate = scoped.reduce((a,b) => a.date > b.date ? a : b).date;
+  const todayKey = dayKey(latestDate);
+  return {latestDate, todayRows: scoped.filter(r => r.dateKey === todayKey)};
 }
-
+function sumBreakdown(rows){
+  let reqSk=0, reqUnsk=0, availSk=0, availUnsk=0, anyBreakdown=false;
+  rows.forEach(r => {
+    if(r.reqSkilled !== null || r.reqUnskilled !== null || r.availSkilled !== null || r.availUnskilled !== null){
+      anyBreakdown = true;
+      reqSk += r.reqSkilled || 0;
+      reqUnsk += r.reqUnskilled || 0;
+      availSk += r.availSkilled || 0;
+      availUnsk += r.availUnskilled || 0;
+    }
+  });
+  return {reqSk, reqUnsk, availSk, availUnsk, anyBreakdown};
+}
+function skUnskCompact(sk, unsk, hasBreakdown){
+  if(!hasBreakdown) return '—';
+  return `${sk.toLocaleString()} <span class="hint">Sk</span> / ${unsk.toLocaleString()} <span class="hint">Unsk</span>`;
+}
 function statusPill(pct){
   if(pct <= 0) return '<span class="status-pill ok">Surplus/On Track</span>';
   if(pct > 0.3) return '<span class="status-pill critical">Critical</span>';
   if(pct > 0.15) return '<span class="status-pill moderate">Moderate</span>';
   return '<span class="status-pill low">Low</span>';
 }
+function dataBarCell(value, max, color){
+  const pct = max > 0 ? Math.min(100, Math.abs(value)/max*100) : 0;
+  return `<td class="num databar-cell"><div class="bar" style="width:${pct}%;background:${color};"></div><span class="val">${value.toLocaleString()}</span></td>`;
+}
+function safeIdFor(str){ return String(str).replace(/[^a-zA-Z0-9]/g, '_'); }
 
-function computeProjectSummary(scope){
-  const list = scope === "__all__" ? PROJECTS : [scope];
-  return list.map(p => {
-    const rows = RAW.filter(r => r.project === p);
-    const {latestDate, todayRows} = latestRowsFor(rows);
-    const req = todayRows.reduce((a,r)=>a+r.required,0);
-    const avail = todayRows.reduce((a,r)=>a+r.available,0);
-    const shortage = req - avail;
-    const pct = req ? shortage/req : 0;
-    const bd = sumBreakdown(todayRows);
-    return {project:p, required:req, available:avail, shortage, pct, fulfil: req ? avail/req : 1, latestDate, bd};
-  }).sort((a,b) => b.pct - a.pct);
+/**
+ * Health score per set of rows (a project, or the whole org).
+ * 45% today's fulfilment + 20% weekly momentum + 20% 7-day consistency
+ * (days >=85% fulfilled) + 15% data freshness (fades over 7 stale days).
+ * Grade: >=80 Healthy · >=60 Watch · <60 Critical.
+ */
+function computeHealthFor(rows){
+  if(!rows.length) return null;
+  const {latestDate, todayRows} = latestRowsFor(rows);
+  const req = todayRows.reduce((a,r)=>a+r.required,0);
+  const avail = todayRows.reduce((a,r)=>a+r.available,0);
+  const fulfilToday = req ? Math.min(1, avail/req) : 1;
+
+  const daily = groupDaily(rows);
+  const last7 = daily.slice(-7), prev7 = daily.slice(-14,-7);
+  const f = d => d.required ? Math.min(1, d.available/d.required) : 1;
+  const fulfil7 = last7.length ? last7.reduce((a,d)=>a+f(d),0)/last7.length : fulfilToday;
+  const fulfilPrev7 = prev7.length ? prev7.reduce((a,d)=>a+f(d),0)/prev7.length : fulfil7;
+  const momentum = Math.max(0, Math.min(1, 0.5 + (fulfil7 - fulfilPrev7)*2));
+  const consistency = last7.length ? last7.filter(d => f(d) >= 0.85).length/last7.length : 1;
+
+  const today = new Date(); today.setUTCHours(0,0,0,0);
+  const latestUTC = new Date(Date.UTC(latestDate.getUTCFullYear(), latestDate.getUTCMonth(), latestDate.getUTCDate()));
+  const ageDays = Math.max(0, Math.round((today - latestUTC)/86400000));
+  const freshness = Math.max(0, 1 - ageDays/7);
+
+  const score = Math.round(100*(fulfilToday*0.45 + momentum*0.2 + consistency*0.2 + freshness*0.15));
+  const shortage = req - avail;
+  const pct = req ? shortage/req : 0;
+  const grade = score >= 80 ? 'Healthy' : score >= 60 ? 'Watch' : 'Critical';
+  return {score: Math.max(0, Math.min(100, score)), grade, fulfilToday, momentum, consistency, freshness,
+          required:req, available:avail, shortage, pct, latestDate, ageDays};
 }
 
-function computeTradeSummary(scoped){
+function healthColor(score){
+  return score >= 80 ? 'var(--green)' : score >= 60 ? 'var(--gold)' : 'var(--red)';
+}
+function gradePillClass(grade){
+  return grade === 'Healthy' ? 'ok' : grade === 'Watch' ? 'moderate' : 'critical';
+}
+
+/** Labour category (Labor Type) summary — today's snapshot within scope. */
+function computeCategorySummary(scoped){
   const {latestDate} = latestRowsFor(scoped);
   const todayKey = dayKey(latestDate);
-  const todayRows = scoped.filter(r => r.dateKey === todayKey && r.trade);
-  const byTrade = {};
+  const todayRows = scoped.filter(r => r.dateKey === todayKey);
+  const byCat = {};
   todayRows.forEach(r => {
-    if(!byTrade[r.trade]) byTrade[r.trade] = {required:0, available:0, lines:0, rows:[]};
-    byTrade[r.trade].required += r.required;
-    byTrade[r.trade].available += r.available;
-    byTrade[r.trade].lines += 1;
-    byTrade[r.trade].rows.push(r);
+    const cat = r.laborType || "Unspecified";
+    if(!byCat[cat]) byCat[cat] = {required:0, available:0, rows:[], projects:new Set(), contractors:new Set()};
+    byCat[cat].required += r.required;
+    byCat[cat].available += r.available;
+    byCat[cat].rows.push(r);
+    byCat[cat].projects.add(r.project);
+    if(r.contractor) byCat[cat].contractors.add(r.contractor);
   });
-  return Object.entries(byTrade).map(([trade,v]) => ({
-    trade, required:v.required, available:v.available,
-    shortage: v.required-v.available,
-    pct: v.required ? (v.required-v.available)/v.required : 0,
-    lines: v.lines,
+  return Object.entries(byCat).map(([cat, v]) => ({
+    category: cat,
+    isUnskilled: isUnskilledType(cat),
+    required: v.required, available: v.available,
+    shortage: v.required - v.available,
+    pct: v.required ? (v.required - v.available)/v.required : 0,
+    projects: v.projects.size, contractors: v.contractors.size,
     bd: sumBreakdown(v.rows)
   })).sort((a,b) => b.shortage - a.shortage);
 }
 
-/**
- * Composite 30-day performance score per contractor, org-wide (ranking
- * across projects only makes sense with the full picture, so this ignores
- * the current Project Focus filter — always computed from RAW).
- * Score = 70% avg fulfilment (capped 100%) + 20% consistency (% days >=90%
- * fulfilment) + 10% trend (2nd half of window vs 1st half).
- * Grade tiers match the Contractor Directory sheet's own scoring for
- * conceptual consistency: Excellent >=90, Good >=75, Watch >=50, else Poor.
- */
-function computeContractorPerformance(lookbackDays){
-  lookbackDays = lookbackDays || 30;
-  const relevantRows = RAW.filter(r => r.contractor);
-  if(!relevantRows.length) return [];
-  const {latestDate} = latestRowsFor(relevantRows);
-  const cutoff = new Date(latestDate.getTime() - lookbackDays*86400000);
-  const windowRows = relevantRows.filter(r => r.date >= cutoff && r.date <= latestDate);
-
-  const byContractor = {};
-  windowRows.forEach(r => {
-    if(!byContractor[r.contractor]) byContractor[r.contractor] = {days:{}, projects:new Set(), towers:new Set(), activities:new Set(), contact:''};
-    const c = byContractor[r.contractor];
-    if(!c.days[r.dateKey]) c.days[r.dateKey] = {required:0, available:0, date:r.date};
-    c.days[r.dateKey].required += r.required;
-    c.days[r.dateKey].available += r.available;
-    c.projects.add(r.project);
-    if(r.tower) c.towers.add(r.tower);
-    if(r.activity) c.activities.add(r.activity);
-    if(r.contact) c.contact = r.contact;
-  });
-
-  return Object.entries(byContractor).map(([name, c]) => {
-    const days = Object.values(c.days).sort((a,b) => a.date - b.date);
-    const dailyFulfil = days.filter(d => d.required > 0).map(d => Math.min(1, d.available / d.required));
-    if(!dailyFulfil.length) return null;
-
-    const avgFulfil = dailyFulfil.reduce((a,b) => a+b, 0) / dailyFulfil.length;
-    const consistency = dailyFulfil.filter(f => f >= 0.9).length / dailyFulfil.length;
-
-    let trend = 0;
-    if(dailyFulfil.length >= 4){
-      const half = Math.floor(dailyFulfil.length / 2);
-      const firstHalf = dailyFulfil.slice(0, half).reduce((a,b) => a+b, 0) / half;
-      const secondHalf = dailyFulfil.slice(half).reduce((a,b) => a+b, 0) / (dailyFulfil.length - half);
-      trend = secondHalf - firstHalf;
-    }
-
-    const fulfilScore = avgFulfil * 100;
-    const consistencyScore = consistency * 100;
-    const trendScore = Math.max(0, Math.min(100, 50 + trend * 200));
-    const composite = Math.round(fulfilScore*0.7 + consistencyScore*0.2 + trendScore*0.1);
-    const grade = composite >= 90 ? 'Excellent' : composite >= 75 ? 'Good' : composite >= 50 ? 'Watch' : 'Poor';
-
-    return {
-      name, contact: c.contact, composite, avgFulfil, consistency, trend,
-      grade, daysTracked: dailyFulfil.length,
-      projects: [...c.projects].join(', '),
-      towers: [...c.towers].join(', ') || '—',
-      activities: [...c.activities].join(', ') || '—'
-    };
-  }).filter(Boolean).sort((a,b) => b.composite - a.composite);
-}
-
-function computeContractorSummary(scoped){
+/** Activity summary — today's snapshot within scope. */
+function computeActivitySummary(scoped){
   const {latestDate} = latestRowsFor(scoped);
   const todayKey = dayKey(latestDate);
-  const byContractor = {};
-  scoped.filter(r => r.contractor && r.dateKey === todayKey).forEach(r => {
-    if(!byContractor[r.contractor]) byContractor[r.contractor] = {contact:'', siteContactName:'', required:0, available:0, projects:new Set(), towers:new Set(), activities:new Set(), rows:[]};
-    byContractor[r.contractor].required += r.required;
-    byContractor[r.contractor].available += r.available;
-    if(r.contact) byContractor[r.contractor].contact = r.contact;
-    if(r.siteContactName) byContractor[r.contractor].siteContactName = r.siteContactName;
-    byContractor[r.contractor].projects.add(r.project);
-    if(r.tower) byContractor[r.contractor].towers.add(r.tower);
-    if(r.activity) byContractor[r.contractor].activities.add(r.activity);
-    byContractor[r.contractor].rows.push(r);
+  const todayRows = scoped.filter(r => r.dateKey === todayKey && r.activity);
+  const byAct = {};
+  todayRows.forEach(r => {
+    if(!byAct[r.activity]) byAct[r.activity] = {required:0, available:0, rows:[], lines:0};
+    byAct[r.activity].required += r.required;
+    byAct[r.activity].available += r.available;
+    byAct[r.activity].lines += 1;
+    byAct[r.activity].rows.push(r);
   });
-  return Object.entries(byContractor).map(([name,v]) => ({
-    name, contact:v.contact, siteContactName:v.siteContactName, required:v.required, available:v.available,
-    shortage: v.required-v.available,
-    pct: v.required ? (v.required-v.available)/v.required : 0,
-    projects: [...v.projects].join(", "),
-    towers: [...v.towers].join(", ") || "—",
-    activities: [...v.activities].join(", ") || "—",
-    bd: sumBreakdown(v.rows)
-  })).filter(c => c.shortage > 0).sort((a,b) => b.pct - a.pct);
+  return Object.entries(byAct).map(([activity, v]) => ({
+    activity, required:v.required, available:v.available,
+    shortage: v.required - v.available,
+    pct: v.required ? (v.required - v.available)/v.required : 0,
+    lines: v.lines, bd: sumBreakdown(v.rows)
+  })).sort((a,b) => b.shortage - a.shortage);
 }
 
-function renderProjectSummaryTable(scope){
-  // Always shows ALL projects, regardless of the current filter — this is
-  // meant as an overview/navigation table. Click a row to filter the whole
-  // dashboard to that project (same effect as the Project Focus dropdown).
-  const rows = computeProjectSummary("__all__");
-  const maxShortage = Math.max(1, ...rows.map(r => Math.abs(r.shortage)));
-  const html = `
-    <div class="table-wrap"><table class="data-table">
-      <thead><tr><th>Sr.</th><th>Project</th><th class="num">Required</th><th class="num">Req (Sk/Unsk)</th><th class="num">Available</th><th class="num">Avail (Sk/Unsk)</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Status</th><th class="num">Fulfilment %</th></tr></thead>
-      <tbody>
-        ${rows.map((r,i) => `
-          <tr class="clickable-row" onclick="filterToProject('${r.project}')" title="Click to view ${r.project} only">
-            <td>${i+1}</td>
-            <td><b>${r.project}</b></td>
-            <td class="num">${r.required.toLocaleString()}</td>
-            <td class="num">${skUnskCompact(r.bd.reqSk, r.bd.reqUnsk, r.bd.anyBreakdown)}</td>
-            <td class="num">${r.available.toLocaleString()}</td>
-            <td class="num">${skUnskCompact(r.bd.availSk, r.bd.availUnsk, r.bd.anyBreakdown)}</td>
-            ${dataBarCell(r.shortage, maxShortage, r.shortage>0?'#e0333f':'#1f9d55')}
-            <td class="num">${(r.pct*100).toFixed(1)}%</td>
-            <td>${statusPill(r.pct)}</td>
-            <td class="num">${(r.fulfil*100).toFixed(1)}%</td>
-          </tr>`).join('')}
-        <tr style="background:var(--bg-soft-2);font-weight:700;">
-          <td></td><td>TOTAL</td>
-          <td class="num">${rows.reduce((a,r)=>a+r.required,0).toLocaleString()}</td>
-          <td colspan="1"></td>
-          <td class="num">${rows.reduce((a,r)=>a+r.available,0).toLocaleString()}</td>
-          <td colspan="1"></td>
-          <td class="num">${rows.reduce((a,r)=>a+r.shortage,0).toLocaleString()}</td>
-          <td colspan="3"></td>
-        </tr>
-      </tbody>
-    </table></div>`;
-  el('projectSummaryTable').innerHTML = html;
-}
-
-function renderTopAttentionTable(scope){
-  const rows = computeProjectSummary(scope).filter(r => r.pct > 0).slice(0, 5);
-  if(!rows.length){
-    el('topAttentionTable').innerHTML = '<div class="empty">No projects currently short — nothing needs immediate attention.</div>';
-    return;
-  }
-  el('topAttentionTable').innerHTML = `
-    <div class="table-wrap"><table class="data-table">
-      <thead><tr><th>Rank</th><th>Project</th><th class="num">Req (Sk/Unsk)</th><th class="num">Avail (Sk/Unsk)</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Status</th></tr></thead>
-      <tbody>
-        ${rows.map((r,i) => `
-          <tr>
-            <td>${i+1}</td>
-            <td><b>${r.project}</b></td>
-            <td class="num">${skUnskCompact(r.bd.reqSk, r.bd.reqUnsk, r.bd.anyBreakdown)}</td>
-            <td class="num">${skUnskCompact(r.bd.availSk, r.bd.availUnsk, r.bd.anyBreakdown)}</td>
-            <td class="num">${r.shortage.toLocaleString()}</td>
-            <td class="num">${(r.pct*100).toFixed(1)}%</td>
-            <td>${statusPill(r.pct)}</td>
-          </tr>`).join('')}
-      </tbody>
-    </table></div>`;
-}
-
-function renderTradeTable(scoped){
-  const rows = computeTradeSummary(scoped);
-  if(!rows.length){
-    el('tradeTable').innerHTML = '<div class="empty">No Trade column data available for this scope.</div>';
-    return;
-  }
-  const maxShortage = Math.max(1, ...rows.map(r => Math.abs(r.shortage)));
-  el('tradeTable').innerHTML = `
-    <div class="table-wrap"><table class="data-table">
-      <thead><tr><th>Trade</th><th class="num">Available</th><th class="num">Avail (Sk/Unsk)</th><th class="num">Required</th><th class="num">Req (Sk/Unsk)</th><th class="num">Shortage</th><th class="num">Shortage %</th><th class="num"># Trade Lines Affected</th></tr></thead>
-      <tbody>
-        ${rows.map(r => `
-          <tr>
-            <td><b>${r.trade}</b></td>
-            <td class="num">${r.available.toLocaleString()}</td>
-            <td class="num">${skUnskCompact(r.bd.availSk, r.bd.availUnsk, r.bd.anyBreakdown)}</td>
-            <td class="num">${r.required.toLocaleString()}</td>
-            <td class="num">${skUnskCompact(r.bd.reqSk, r.bd.reqUnsk, r.bd.anyBreakdown)}</td>
-            ${dataBarCell(r.shortage, maxShortage, r.shortage>0?'#e0333f':'#1f9d55')}
-            <td class="num">${(r.pct*100).toFixed(1)}%</td>
-            <td class="num">${r.lines}</td>
-          </tr>`).join('')}
-      </tbody>
-    </table></div>`;
-}
-
-function renderContractorWatchlist(scoped){
-  const rows = computeContractorSummary(scoped);
-  const container = el('contractorWatchlist');
-  const callContainer = el('topContractorsCall');
-  if(!rows.length){
-    container.innerHTML = '<div class="empty">No contractor data yet — Contractor column is empty in Master Raw. Once PMs start selecting contractors, this fills in automatically.</div>';
-    callContainer.innerHTML = '';
-    return;
-  }
-  const maxShortage = Math.max(1, ...rows.map(r => Math.abs(r.shortage)));
-  container.innerHTML = `
-    <div class="table-wrap scrollable"><table class="data-table">
-      <thead><tr><th>Contractor</th><th>Site Contact</th><th>Activity</th><th class="num">Contact</th><th class="num">Available</th><th class="num">Avail (Sk/Unsk)</th><th class="num">Required</th><th class="num">Req (Sk/Unsk)</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Projects Involved</th><th>Tower</th></tr></thead>
-      <tbody>
-        ${rows.map(r => `
-          <tr>
-            <td><b>${r.name}</b></td>
-            <td>${r.siteContactName||'—'}</td>
-            <td>${r.activities}</td>
-            <td class="num">${r.contact||'—'}</td>
-            <td class="num">${r.available.toLocaleString()}</td>
-            <td class="num">${skUnskCompact(r.bd.availSk, r.bd.availUnsk, r.bd.anyBreakdown)}</td>
-            <td class="num">${r.required.toLocaleString()}</td>
-            <td class="num">${skUnskCompact(r.bd.reqSk, r.bd.reqUnsk, r.bd.anyBreakdown)}</td>
-            ${dataBarCell(r.shortage, maxShortage, '#e0333f')}
-            <td class="num">${(r.pct*100).toFixed(1)}%</td>
-            <td>${r.projects}</td>
-            <td>${r.towers}</td>
-          </tr>`).join('')}
-      </tbody>
-    </table></div>`;
-
-  const top5 = rows.slice(0,5);
-  callContainer.innerHTML = `
-    <div class="table-wrap"><table class="data-table">
-      <thead><tr><th>Rank</th><th>Contractor</th><th>Site Contact</th><th>Activity</th><th class="num">Contact</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Projects</th><th>Tower</th></tr></thead>
-      <tbody>
-        ${top5.map((r,i) => `
-          <tr>
-            <td>${i+1}</td>
-            <td><b>${r.name}</b></td>
-            <td>${r.siteContactName||'—'}</td>
-            <td>${r.activities}</td>
-            <td class="num">${r.contact||'—'}</td>
-            <td class="num">${r.shortage.toLocaleString()}</td>
-            <td class="num">${(r.pct*100).toFixed(1)}%</td>
-            <td>${r.projects}</td>
-            <td>${r.towers}</td>
-          </tr>`).join('')}
-      </tbody>
-    </table></div>`;
-}
-
-function showContractorTab(which){
-  const watchView = el('contractorWatchView');
-  const topView = el('contractorTopView');
-  const watchBtn = el('contractorTabWatchBtn');
-  const topBtn = el('contractorTabTopBtn');
-  if(!watchView || !topView) return;
-  if(which === 'top'){
-    watchView.classList.add('hidden');
-    topView.classList.remove('hidden');
-    watchBtn.classList.remove('active');
-    topBtn.classList.add('active');
-    renderContractorTop();
-  } else {
-    watchView.classList.remove('hidden');
-    topView.classList.add('hidden');
-    watchBtn.classList.add('active');
-    topBtn.classList.remove('active');
-  }
-}
-
-function gradeClass(grade){
-  return {Excellent:'excellent', Good:'good', Watch:'watch', Poor:'poor'}[grade] || 'watch';
-}
-
-function renderContractorTop(){
-  const container = el('contractorTopTable');
-  if(!container) return;
-  const rows = computeContractorPerformance(30);
-  if(!rows.length){
-    container.innerHTML = '<div class="empty">Not enough contractor data logged yet to rank performance.</div>';
-    return;
-  }
-  container.innerHTML = `
-    <div class="table-wrap scrollable"><table class="data-table">
-      <thead><tr><th>Rank</th><th>Contractor</th><th>Activity</th><th>Grade</th><th class="num">Score</th><th class="num">Avg Fulfilment</th><th class="num">Consistency</th><th>Trend</th><th class="num">Days Tracked</th><th>Projects</th><th>Tower</th></tr></thead>
-      <tbody>
-        ${rows.map((r,i) => {
-          const trendLabel = r.trend > 0.03 ? '▲ Improving' : r.trend < -0.03 ? '▼ Declining' : '— Steady';
-          const trendColor = r.trend > 0.03 ? 'var(--green)' : r.trend < -0.03 ? 'var(--red)' : 'var(--ink-dim)';
-          return `
-          <tr>
-            <td>${i+1}</td>
-            <td><b>${r.name}</b></td>
-            <td>${r.activities}</td>
-            <td><span class="grade-pill ${gradeClass(r.grade)}">${r.grade}</span></td>
-            <td class="num" style="font-weight:700;">${r.composite}</td>
-            <td class="num">${(r.avgFulfil*100).toFixed(1)}%</td>
-            <td class="num">${(r.consistency*100).toFixed(0)}%</td>
-            <td style="color:${trendColor};font-weight:600;">${trendLabel}</td>
-            <td class="num">${r.daysTracked}</td>
-            <td>${r.projects}</td>
-            <td>${r.towers}</td>
-          </tr>`;
-        }).join('')}
-      </tbody>
-    </table></div>
-    <p class="hint" style="margin-top:10px;">Score = 70% avg fulfilment (30 days, capped at 100%) + 20% consistency (days ≥90% fulfilled) + 10% trend (recent half vs earlier half of the window).</p>
-  `;
-}
-
-function sparklineSVG(values, color){
-  if(values.length < 1) return '';
-  const w = 200, h = 34, pad = 2, gap = 3;
-  const max = Math.max(...values, 0.0001);
-  const min = Math.min(...values, 0);
-  const range = (max - min) || 1;
-  const n = values.length;
-  const barW = Math.max(2, (w - pad*2 - gap*(n-1)) / n);
-  const bars = values.map((v,i) => {
-    const x = pad + i * (barW + gap);
-    const barH = Math.max(1.5, ((v-min)/range) * (h - pad*2));
-    const y = h - pad - barH;
-    const isLast = i === n-1;
-    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${barH.toFixed(1)}" rx="1.5" fill="${color}" opacity="${isLast ? 1 : 0.45}"/>`;
-  }).join('');
-  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${bars}</svg>`;
-}
-
-function buildLayout(){
-  return `
-    <div class="section-head"><div class="tag">Labour Health</div><div class="synced">Synced live</div></div>
-    <div class="health-card" id="healthCard"></div>
-
-    <div class="section-head"><div class="tag">Today's Numbers</div></div>
-    <div class="stat-grid" id="statGrid"></div>
-
-    <div id="towerSection"></div>
-
-    <div class="section-head"><div class="tag">Trend & Forecast</div></div>
-    <div class="chart-grid">
-      <div class="panel">
-        <h2>Shortage Trend & Forecast</h2>
-        <p class="desc">Daily total shortage, 7-day average, and a linear-trend forecast.</p>
-        <div class="chart-box"><canvas id="trendChart"></canvas></div>
-        <div class="legend-row">
-          <span><span class="swatch" style="background:#2f5fdb"></span>Daily shortage</span>
-          <span><span class="swatch" style="background:#c9971f"></span>7-day average</span>
-          <span><span class="swatch" style="background:#e0333f"></span>Forecast (dashed)</span>
-        </div>
-      </div>
-      <div class="panel">
-        <h2 id="donutTitle">Shortage Share by Project</h2>
-        <p class="desc" id="donutDesc">Where today's gap is concentrated.</p>
-        <div class="chart-box"><canvas id="donutChart"></canvas></div>
-      </div>
-    </div>
-
-    <div class="section-head"><div class="tag">Top 5 Projects Needing Immediate Attention</div></div>
-    <div class="highlight-box">
-      <div class="highlight-title">⚠ Call these projects first</div>
-      <div id="topAttentionTable"></div>
-    </div>
-
-    <div class="section-head"><div class="tag">Labour Shortage — Project Summary</div><div class="synced">All projects, today</div></div>
-    <div id="projectSummaryTable"></div>
-
-    <div class="section-head"><div class="tag">Projects at Risk (Trend)</div><div class="synced" id="riskSynced"></div></div>
-    <div class="risk-grid" id="riskGrid"></div>
-
-    <div class="section-head"><div class="tag">Labour Shortage by Trade / Skill</div></div>
-    <div class="chart-grid">
-      <div class="panel">
-        <h2>Top Trade Shortages (Chart)</h2>
-        <p class="desc">Scoped to current filter, today's snapshot.</p>
-        <div class="chart-box"><canvas id="tradeChart"></canvas></div>
-      </div>
-      <div class="panel">
-        <h2>Trade Shortage Table</h2>
-        <p class="desc">Use this to prioritise hiring or subcontracting company-wide.</p>
-        <div id="tradeTable"></div>
-      </div>
-    </div>
-
-    <div class="chart-grid" style="margin-top:16px;">
-      <div class="panel">
-        <h2>Skilled vs Unskilled Shortage by Trade</h2>
-        <p class="desc" id="skillChartDesc">Scoped to current filter, today's snapshot.</p>
-        <div class="chart-box"><canvas id="skillChart"></canvas></div>
-      </div>
-    </div>
-
-    <div class="section-head"><div class="tag">Contractor Performance</div><div class="synced">Watchlist &amp; top performers</div></div>
-    <div style="display:flex; gap:8px; margin-bottom:14px;">
-      <button class="tab-btn active" id="contractorTabWatchBtn" onclick="showContractorTab('watch')">⚠ Needs Attention</button>
-      <button class="tab-btn" id="contractorTabTopBtn" onclick="showContractorTab('top')">🏆 Top Performers</button>
-    </div>
-
-    <div id="contractorWatchView">
-      <div class="highlight-box">
-        <div class="highlight-title">📞 Top 5 contractors to call today</div>
-        <div id="topContractorsCall"></div>
-      </div>
-      <div id="contractorWatchlist"></div>
-    </div>
-
-    <div id="contractorTopView" class="hidden">
-      <p class="desc" style="margin-bottom:12px;">Ranked by a 30-day composite score: fulfilment rate, consistency, and trend. See footer for exact logic.</p>
-      <div id="contractorTopTable"></div>
-    </div>
-  `;
+function computeProjectSummary(){
+  return PROJECTS.map(p => {
+    const rows = RAW.filter(r => r.project === p);
+    const h = computeHealthFor(rows);
+    const bd = sumBreakdown(latestRowsFor(rows).todayRows);
+    return {project:p, ...h, fulfil: h.required ? h.available/h.required : 1, bd};
+  }).sort((a,b) => a.score - b.score);
 }
 
 function computeTowerSummary(scoped){
@@ -916,179 +699,329 @@ function computeTowerSummary(scoped){
   })).sort((a,b) => b.pct - a.pct);
 }
 
-/** Activity-level breakdown for ONE tower, today's snapshot — powers the
- *  click-to-expand detail row in the Tower Level table. */
 function computeTowerActivityBreakdown(scoped, tower){
   const {latestDate} = latestRowsFor(scoped);
   const todayKey = dayKey(latestDate);
   const rows = scoped.filter(r => r.dateKey === todayKey && r.tower === tower && r.activity);
   const byActivity = {};
   rows.forEach(r => {
-    if(!byActivity[r.activity]) byActivity[r.activity] = {
-      required:0, available:0, reqSk:0, reqUnsk:0, availSk:0, availUnsk:0, hasBreakdown:false
-    };
-    const b = byActivity[r.activity];
-    b.required += r.required;
-    b.available += r.available;
-    if(r.reqSkilled !== null || r.reqUnskilled !== null || r.availSkilled !== null || r.availUnskilled !== null){
-      b.hasBreakdown = true;
-      b.reqSk += r.reqSkilled || 0;
-      b.reqUnsk += r.reqUnskilled || 0;
-      b.availSk += r.availSkilled || 0;
-      b.availUnsk += r.availUnskilled || 0;
-    }
+    const key = r.activity + (r.laborType ? " · " + r.laborType : "");
+    if(!byActivity[key]) byActivity[key] = {required:0, available:0, contractors:new Set()};
+    byActivity[key].required += r.required;
+    byActivity[key].available += r.available;
+    if(r.contractor) byActivity[key].contractors.add(r.contractor);
   });
-  return Object.entries(byActivity).map(([activity,v]) => ({
-    activity, required:v.required, available:v.available, shortage:v.required-v.available,
-    hasBreakdown: v.hasBreakdown,
-    reqSk: v.reqSk, reqUnsk: v.reqUnsk, availSk: v.availSk, availUnsk: v.availUnsk
+  return Object.entries(byActivity).map(([label,v]) => ({
+    label, required:v.required, available:v.available, shortage:v.required-v.available,
+    contractors: [...v.contractors].join(', ') || '—'
   })).sort((a,b) => b.shortage - a.shortage);
 }
 
-function toggleTowerDetail(safeId){
-  const row = document.getElementById('towerDetail-' + safeId);
-  const arrow = document.getElementById('towerArrow-' + safeId);
-  if(!row) return;
-  const isHidden = row.classList.contains('hidden');
-  row.classList.toggle('hidden');
-  if(arrow) arrow.textContent = isHidden ? '▾' : '▸';
+/** Predictive: shortage% trend per project → projected days until it crosses 30% (critical). */
+function computePredictions(horizon){
+  return PROJECTS.map(p => {
+    const rows = RAW.filter(r => r.project === p);
+    const daily = groupDaily(rows).slice(-14);
+    if(daily.length < 3) return {project:p, enoughData:false};
+    const xs = daily.map((_,i)=>i);
+    const pcts = daily.map(d => d.required ? (d.required-d.available)/d.required : 0);
+    const shorts = daily.map(d => d.required - d.available);
+    const {slope: pctSlope, intercept: pctIntercept} = linearRegression(xs, pcts);
+    const {slope: shortSlope} = linearRegression(xs, shorts);
+    const currentPct = pcts[pcts.length-1];
+    const lastX = xs.length - 1;
+
+    let daysToCritical = null; // crossing 30%
+    if(currentPct >= 0.3){
+      daysToCritical = 0;
+    } else if(pctSlope > 0.0005){
+      const x = (0.3 - pctIntercept) / pctSlope;
+      const days = Math.ceil(x - lastX);
+      if(days >= 0 && days <= 60) daysToCritical = days;
+    }
+    // projected shortage at horizon
+    const projPct = Math.max(0, Math.min(1, pctIntercept + pctSlope*(lastX + horizon)));
+    const latestReq = daily[daily.length-1].required;
+    return {
+      project:p, enoughData:true,
+      currentPct, pctSlope, shortSlope,
+      currentShortage: shorts[shorts.length-1],
+      projPct, projShortage: Math.max(0, Math.round(latestReq * projPct)),
+      daysToCritical
+    };
+  });
 }
 
-function safeIdFor(str){ return str.replace(/[^a-zA-Z0-9]/g, '_'); }
+/**
+ * Site challenges:
+ *  1. Persistent shortage streaks — Project(+Tower) short 3+ consecutive logged days.
+ *  2. Silent sites — projects that haven't logged for 2+ days.
+ *  3. Chronic activity gaps — activities with worst avg shortage% over the last 14 days (min 3 logged days).
+ */
+function computeChallenges(){
+  const streaks = [];
+  PROJECTS.forEach(p => {
+    const rows = RAW.filter(r => r.project === p);
+    const daily = groupDaily(rows);
+    let n = 0;
+    for(let i = daily.length-1; i >= 0; i--){
+      if(daily[i].required - daily[i].available > 0) n++;
+      else break;
+    }
+    if(n >= 3){
+      const last = daily[daily.length-1];
+      streaks.push({project:p, days:n, shortage:last.required-last.available});
+    }
+  });
+  streaks.sort((a,b) => b.days - a.days);
 
-function renderTowerSection(scope, scoped){
-  const container = el('towerSection');
-  if(scope === "__all__"){
-    container.innerHTML = `
-      <div class="section-head"><div class="tag">Tower Level</div></div>
-      <div class="empty" style="border:1px dashed var(--line);border-radius:10px;">Select a project above to see its tower-by-tower breakdown.</div>
-    `;
-    return;
-  }
-  const rows = computeTowerSummary(scoped);
-  if(!rows.length){
-    container.innerHTML = `
-      <div class="section-head"><div class="tag">Tower Level — ${scope}</div></div>
-      <div class="empty">No tower data logged yet for this project.</div>
-    `;
-    return;
-  }
-  const maxShortage = Math.max(1, ...rows.map(r => Math.abs(r.shortage)));
-  container.innerHTML = `
-    <div class="section-head"><div class="tag">Tower Level — ${scope}</div><div class="synced">${rows.length} towers, today's snapshot — click a row for activity detail</div></div>
-    <div class="table-wrap"><table class="data-table">
-      <thead><tr><th></th><th>Tower</th><th class="num">Required</th><th class="num">Req (Sk/Unsk)</th><th class="num">Available</th><th class="num">Avail (Sk/Unsk)</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Status</th></tr></thead>
-      <tbody>
-        ${rows.map(r => {
-          const safeId = safeIdFor(r.tower);
-          const detail = computeTowerActivityBreakdown(scoped, r.tower);
-          const anyBreakdown = detail.some(d => d.hasBreakdown);
-          const detailHeader = anyBreakdown
-            ? `<th>Activity</th><th class="num">Req Skilled</th><th class="num">Req Unskilled</th><th class="num">Avail Skilled</th><th class="num">Avail Unskilled</th><th class="num">Short</th>`
-            : `<th>Activity</th><th class="num">Req</th><th class="num">Avail</th><th class="num">Short</th>`;
-          const detailRows = detail.length
-            ? detail.map(d => anyBreakdown
-                ? `<tr><td>${d.activity}</td><td class="num">${d.hasBreakdown ? d.reqSk : '—'}</td><td class="num">${d.hasBreakdown ? d.reqUnsk : '—'}</td><td class="num">${d.hasBreakdown ? d.availSk : '—'}</td><td class="num">${d.hasBreakdown ? d.availUnsk : '—'}</td><td class="num" style="color:${d.shortage>0?'var(--red)':'var(--green)'};font-weight:600;">${d.shortage}</td></tr>`
-                : `<tr><td>${d.activity}</td><td class="num">${d.required}</td><td class="num">${d.available}</td><td class="num" style="color:${d.shortage>0?'var(--red)':'var(--green)'};font-weight:600;">${d.shortage}</td></tr>`
-              ).join('')
-            : `<tr><td colspan="6" style="color:var(--ink-dim);">No activity-level data for this tower yet.</td></tr>`;
-          return `
-          <tr class="clickable-row" onclick="toggleTowerDetail('${safeId}')">
-            <td><span id="towerArrow-${safeId}" style="color:var(--ink-faint);">▸</span></td>
-            <td><b>${r.tower}</b></td>
-            <td class="num">${r.required.toLocaleString()}</td>
-            <td class="num">${skUnskCompact(r.bd.reqSk, r.bd.reqUnsk, r.bd.anyBreakdown)}</td>
-            <td class="num">${r.available.toLocaleString()}</td>
-            <td class="num">${skUnskCompact(r.bd.availSk, r.bd.availUnsk, r.bd.anyBreakdown)}</td>
-            ${dataBarCell(r.shortage, maxShortage, r.shortage>0?'#e0333f':'#1f9d55')}
-            <td class="num">${(r.pct*100).toFixed(1)}%</td>
-            <td>${statusPill(r.pct)}</td>
-          </tr>
-          <tr id="towerDetail-${safeId}" class="hidden">
-            <td colspan="9" style="background:var(--bg-soft);padding:12px 12px 12px 34px;">
-              <table class="mini-table" style="margin:0;">
-                <thead><tr>${detailHeader}</tr></thead>
-                <tbody>${detailRows}</tbody>
-              </table>
-            </td>
-          </tr>`;
-        }).join('')}
-        <tr style="background:var(--bg-soft-2);font-weight:700;">
-          <td></td>
-          <td>TOTAL</td>
-          <td class="num">${rows.reduce((a,r)=>a+r.required,0).toLocaleString()}</td>
-          <td colspan="1"></td>
-          <td class="num">${rows.reduce((a,r)=>a+r.available,0).toLocaleString()}</td>
-          <td colspan="1"></td>
-          <td class="num">${rows.reduce((a,r)=>a+r.shortage,0).toLocaleString()}</td>
-          <td colspan="2"></td>
-        </tr>
-      </tbody>
-    </table></div>
+  const globalLatest = RAW.reduce((a,b) => a.date > b.date ? a : b).date;
+  const silent = PROJECTS.map(p => {
+    const rows = RAW.filter(r => r.project === p);
+    const latest = rows.reduce((a,b) => a.date > b.date ? a : b).date;
+    const gap = Math.round((globalLatest - latest)/86400000);
+    return {project:p, gap, lastDate:latest};
+  }).filter(s => s.gap >= 2).sort((a,b) => b.gap - a.gap);
+
+  const cutoff = new Date(globalLatest.getTime() - 14*86400000);
+  const byAct = {};
+  RAW.filter(r => r.activity && r.date >= cutoff).forEach(r => {
+    const key = r.project + "|" + r.activity;
+    if(!byAct[key]) byAct[key] = {project:r.project, activity:r.activity, days:{}};
+    if(!byAct[key].days[r.dateKey]) byAct[key].days[r.dateKey] = {required:0, available:0};
+    byAct[key].days[r.dateKey].required += r.required;
+    byAct[key].days[r.dateKey].available += r.available;
+  });
+  const chronic = Object.values(byAct).map(a => {
+    const days = Object.values(a.days).filter(d => d.required > 0);
+    if(days.length < 3) return null;
+    const avgPct = days.reduce((acc,d) => acc + (d.required-d.available)/d.required, 0)/days.length;
+    return {project:a.project, activity:a.activity, avgPct, days:days.length};
+  }).filter(x => x && x.avgPct > 0.15).sort((a,b) => b.avgPct - a.avgPct).slice(0,6);
+
+  return {streaks, silent, chronic};
+}
+
+/** Contractor 30-day composite performance (org-wide, ignores focus filter). */
+function computeContractorPerformance(lookbackDays){
+  lookbackDays = lookbackDays || 30;
+  const relevantRows = RAW.filter(r => r.contractor);
+  if(!relevantRows.length) return [];
+  const {latestDate} = latestRowsFor(relevantRows);
+  const cutoff = new Date(latestDate.getTime() - lookbackDays*86400000);
+  const windowRows = relevantRows.filter(r => r.date >= cutoff && r.date <= latestDate);
+
+  const byContractor = {};
+  windowRows.forEach(r => {
+    if(!byContractor[r.contractor]) byContractor[r.contractor] = {days:{}, projects:new Set(), towers:new Set(), activities:new Set(), cats:new Set(), contact:''};
+    const c = byContractor[r.contractor];
+    if(!c.days[r.dateKey]) c.days[r.dateKey] = {required:0, available:0, date:r.date};
+    c.days[r.dateKey].required += r.required;
+    c.days[r.dateKey].available += r.available;
+    c.projects.add(r.project);
+    if(r.tower) c.towers.add(r.tower);
+    if(r.activity) c.activities.add(r.activity);
+    if(r.laborType) c.cats.add(r.laborType);
+    if(r.contact) c.contact = r.contact;
+  });
+
+  return Object.entries(byContractor).map(([name, c]) => {
+    const days = Object.values(c.days).sort((a,b) => a.date - b.date);
+    const dailyFulfil = days.filter(d => d.required > 0).map(d => Math.min(1, d.available / d.required));
+    if(!dailyFulfil.length) return null;
+    const avgFulfil = dailyFulfil.reduce((a,b) => a+b, 0) / dailyFulfil.length;
+    const consistency = dailyFulfil.filter(f => f >= 0.9).length / dailyFulfil.length;
+    let trend = 0;
+    if(dailyFulfil.length >= 4){
+      const half = Math.floor(dailyFulfil.length / 2);
+      const firstHalf = dailyFulfil.slice(0, half).reduce((a,b) => a+b, 0) / half;
+      const secondHalf = dailyFulfil.slice(half).reduce((a,b) => a+b, 0) / (dailyFulfil.length - half);
+      trend = secondHalf - firstHalf;
+    }
+    const composite = Math.round(avgFulfil*100*0.7 + consistency*100*0.2 + Math.max(0, Math.min(100, 50 + trend*200))*0.1);
+    const grade = composite >= 90 ? 'Excellent' : composite >= 75 ? 'Good' : composite >= 50 ? 'Watch' : 'Poor';
+    return {
+      name, contact: c.contact, composite, avgFulfil, consistency, trend,
+      grade, daysTracked: dailyFulfil.length,
+      projects: [...c.projects].join(', '),
+      towers: [...c.towers].join(', ') || '—',
+      activities: [...c.activities].join(', ') || '—',
+      categories: [...c.cats].join(', ') || '—'
+    };
+  }).filter(Boolean).sort((a,b) => b.composite - a.composite);
+}
+
+function computeContractorWatchlist(scoped){
+  const {latestDate} = latestRowsFor(scoped);
+  const todayKey = dayKey(latestDate);
+  const byContractor = {};
+  scoped.filter(r => r.contractor && r.dateKey === todayKey).forEach(r => {
+    if(!byContractor[r.contractor]) byContractor[r.contractor] = {contact:'', siteContactName:'', required:0, available:0, projects:new Set(), towers:new Set(), activities:new Set(), cats:new Set(), rows:[]};
+    const c = byContractor[r.contractor];
+    c.required += r.required;
+    c.available += r.available;
+    if(r.contact) c.contact = r.contact;
+    if(r.siteContactName) c.siteContactName = r.siteContactName;
+    c.projects.add(r.project);
+    if(r.tower) c.towers.add(r.tower);
+    if(r.activity) c.activities.add(r.activity);
+    if(r.laborType) c.cats.add(r.laborType);
+    c.rows.push(r);
+  });
+  return Object.entries(byContractor).map(([name,v]) => ({
+    name, contact:v.contact, siteContactName:v.siteContactName, required:v.required, available:v.available,
+    shortage: v.required-v.available,
+    pct: v.required ? (v.required-v.available)/v.required : 0,
+    projects: [...v.projects].join(", "),
+    towers: [...v.towers].join(", ") || "—",
+    activities: [...v.activities].join(", ") || "—",
+    categories: [...v.cats].join(", ") || "—",
+    bd: sumBreakdown(v.rows)
+  })).filter(c => c.shortage > 0).sort((a,b) => b.pct - a.pct);
+}
+
+function sparklineSVG(values, color){
+  if(values.length < 1) return '';
+  const w = 200, h = 34, pad = 2, gap = 3;
+  const max = Math.max(...values, 0.0001);
+  const min = Math.min(...values, 0);
+  const range = (max - min) || 1;
+  const n = values.length;
+  const barW = Math.max(2, (w - pad*2 - gap*(n-1)) / n);
+  const bars = values.map((v,i) => {
+    const x = pad + i * (barW + gap);
+    const barH = Math.max(1.5, ((v-min)/range) * (h - pad*2));
+    const y = h - pad - barH;
+    const isLast = i === n-1;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${barH.toFixed(1)}" rx="1.5" fill="${color}" opacity="${isLast ? 1 : 0.45}"/>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">${bars}</svg>`;
+}
+
+/* =============================== LAYOUT =============================== */
+function buildLayout(){
+  return `
+    <div class="section-head" id="sec-health"><div class="tag"><span class="no">01</span>Portfolio Health</div><div class="synced">Click any project card to focus the whole dashboard</div></div>
+    <p class="section-sub">One score per project — fulfilment, momentum, consistency, and reporting discipline rolled together. Red cards are where your morning starts.</p>
+    <div class="health-layout">
+      <div class="health-card" id="healthCard"></div>
+      <div class="proj-grid" id="projGrid"></div>
+    </div>
+
+    <div class="section-head"><div class="tag"><span class="no">01b</span>14-Day Fulfilment Heatmap</div><div class="synced">Project × day · hover any cell</div></div>
+    <p class="section-sub">Spot patterns text can't show — a project going from green to amber to red is drifting; scattered grey means sites aren't logging daily.</p>
+    <div class="heatmap-wrap" id="heatmapWrap"></div>
+
+    <div class="section-head" id="sec-labour"><div class="tag"><span class="no">02</span>Labour Position — Today</div><div class="synced" id="labourSynced"></div></div>
+    <div class="stat-grid" id="statGrid"></div>
+    <div class="chart-grid" style="margin-top:16px;">
+      <div class="panel">
+        <h2>Shortage Trend &amp; Forecast</h2>
+        <p class="desc">Daily total shortage, 7-day average, and a linear-trend forecast for the selected horizon.</p>
+        <div class="chart-box"><canvas id="trendChart"></canvas></div>
+        <div class="legend-row">
+          <span><span class="swatch" style="background:#2f5fdb"></span>Daily shortage</span>
+          <span><span class="swatch" style="background:#c9971f"></span>7-day average</span>
+          <span><span class="swatch" style="background:#e0333f"></span>Forecast (dashed)</span>
+        </div>
+      </div>
+      <div class="panel">
+        <h2 id="donutTitle">Shortage Share by Project</h2>
+        <p class="desc" id="donutDesc">Where today's gap is concentrated.</p>
+        <div class="chart-box"><canvas id="donutChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="section-head" id="sec-category"><div class="tag"><span class="no">03</span>Labour Categories</div><div class="synced">By Labor Type · M/C &amp; F/C auto-classified Unskilled</div></div>
+    <p class="section-sub">Which craft is actually missing — a shortage of Masons stalls RCC, a shortage of M/C stalls everything behind it. Prioritise recruitment and reallocation by category, not just headcount.</p>
+    <div class="chart-grid even">
+      <div class="panel">
+        <h2>Shortage by Labour Category</h2>
+        <p class="desc" id="catChartDesc">Today's snapshot, scoped to current filter.</p>
+        <div class="chart-box"><canvas id="catChart"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2>Skilled vs Unskilled — by Activity</h2>
+        <p class="desc" id="skillChartDesc">Where each kind of gap sits.</p>
+        <div class="chart-box"><canvas id="skillChart"></canvas></div>
+      </div>
+    </div>
+    <div style="margin-top:16px;" id="catTable"></div>
+
+    <div class="section-head" id="sec-predict"><div class="tag"><span class="no">04</span>Predictive Outlook</div><div class="synced" id="predictSynced"></div></div>
+    <p class="section-sub">Linear trend on the last 14 logged days. "Days to critical" is when a project's shortage is projected to cross 30% of requirement if nothing changes.</p>
+    <div class="predict-grid" id="predictGrid"></div>
+
+    <div class="section-head" id="sec-projects"><div class="tag"><span class="no">05</span>Projects &amp; Towers</div><div class="synced">Click a project row to focus · click a tower row for activity detail</div></div>
+    <div class="highlight-box">
+      <div class="highlight-title">⚠ Call these projects first</div>
+      <div id="topAttentionTable"></div>
+    </div>
+    <div id="projectSummaryTable"></div>
+    <div id="towerSection"></div>
+
+    <div class="section-head" id="sec-contractors"><div class="tag"><span class="no">06</span>Contractor Performance</div><div class="synced">Watchlist today · ranking over 30 days, org-wide</div></div>
+    <div style="display:flex; gap:8px; margin-bottom:14px;">
+      <button class="tab-btn active" id="contractorTabWatchBtn" onclick="showContractorTab('watch')">⚠ Needs Attention</button>
+      <button class="tab-btn" id="contractorTabTopBtn" onclick="showContractorTab('top')">🏆 Top Performers</button>
+    </div>
+    <div id="contractorWatchView">
+      <div class="highlight-box">
+        <div class="highlight-title">📞 Top 5 contractors to call today</div>
+        <div id="topContractorsCall"></div>
+      </div>
+      <div id="contractorWatchlist"></div>
+    </div>
+    <div id="contractorTopView" class="hidden">
+      <p class="section-sub">Ranked by a 30-day composite: 70% fulfilment, 20% consistency (days ≥90%), 10% trend. Use this at renewal and allocation time.</p>
+      <div id="contractorTopTable"></div>
+    </div>
+
+    <div class="section-head" id="sec-challenges"><div class="tag"><span class="no">07</span>Site Challenges</div><div class="synced">Auto-detected from the log</div></div>
+    <p class="section-sub">Problems that don't show in a single day's snapshot: sites stuck short for days, sites gone quiet, and activities that are chronically under-manned.</p>
+    <div class="challenge-grid" id="challengeGrid"></div>
   `;
 }
 
-/** Sets the Project Focus dropdown to a specific project and re-renders — used
- *  when a row in the always-org-wide Project Summary table is clicked. */
-function filterToProject(project){
-  el('projectFilter').value = project;
-  render();
-  window.scrollTo({top: 0, behavior: 'smooth'});
-}
+/* =============================== RENDER =============================== */
+function destroyChart(id){ if(charts[id]){ charts[id].destroy(); delete charts[id]; } }
 
 function render(){
   const scope = el('projectFilter').value;
   const horizon = parseInt(el('horizonFilter').value, 10);
   const scoped = scope === "__all__" ? RAW : RAW.filter(r => r.project === scope);
+  const chip = el('scopeChip');
+  if(scope === "__all__"){ chip.classList.remove('on'); }
+  else { chip.classList.add('on'); chip.textContent = "✕ focused: " + scope; }
 
   el('content').innerHTML = buildLayout();
   renderHeroKPIs(scoped);
-  renderHealthBlock(scoped);
+  renderBrief(horizon);
+  renderHealthGauge(scoped, scope);
+  renderProjectGrid();
+  renderHeatmap();
   renderStatCards(scoped);
-  renderTowerSection(scope, scoped);
   renderTrendChart(scoped, horizon);
   renderDonut(scope, scoped);
-  renderTopAttentionTable(scope);
-  renderProjectSummaryTable(scope);
-  renderRiskCards(scope);
-  renderTradeChart(scoped);
+  renderCategoryChart(scoped);
   renderSkillChart(scoped);
-  renderTradeTable(scoped);
+  renderCategoryTable(scoped);
+  renderPredictions(horizon, scope);
+  renderTopAttentionTable();
+  renderProjectSummaryTable();
+  renderTowerSection(scope, scoped);
   renderContractorWatchlist(scoped);
+  renderChallenges();
 }
 
-function destroyChart(id){ if(charts[id]){ charts[id].destroy(); delete charts[id]; } }
-
-function latestRowsFor(scoped){
-  const latestDate = scoped.reduce((a,b) => a.date > b.date ? a : b).date;
-  const todayKey = dayKey(latestDate);
-  return {latestDate, todayRows: scoped.filter(r => r.dateKey === todayKey)};
+function filterToProject(project){
+  el('projectFilter').value = project;
+  render();
+  window.scrollTo({top: 0, behavior: 'smooth'});
 }
-
-/**
- * Sums Required/Available Skilled+Unskilled across a set of rows.
- * anyBreakdown=false means none of these rows have the split data (e.g. all
- * historical, pre-migration) — callers should show a combined-only fallback
- * in that case rather than a misleading "0 / 0" split.
- */
-function sumBreakdown(rows){
-  let reqSk=0, reqUnsk=0, availSk=0, availUnsk=0, anyBreakdown=false;
-  rows.forEach(r => {
-    if(r.reqSkilled !== null || r.reqUnskilled !== null || r.availSkilled !== null || r.availUnskilled !== null){
-      anyBreakdown = true;
-      reqSk += r.reqSkilled || 0;
-      reqUnsk += r.reqUnskilled || 0;
-      availSk += r.availSkilled || 0;
-      availUnsk += r.availUnskilled || 0;
-    }
-  });
-  return {reqSk, reqUnsk, availSk, availUnsk, anyBreakdown};
-}
-
-/** Compact "12 / 8" style cell for a table column, "—" if no breakdown exists. */
-function skUnskCompact(sk, unsk, hasBreakdown){
-  if(!hasBreakdown) return '—';
-  return `${sk.toLocaleString()} <span class="hint">Sk</span> / ${unsk.toLocaleString()} <span class="hint">Unsk</span>`;
+function clearScope(){
+  el('projectFilter').value = "__all__";
+  render();
 }
 
 function renderHeroKPIs(scoped){
@@ -1098,92 +1031,90 @@ function renderHeroKPIs(scoped){
   const shortage = req - avail;
   const fulfil = req ? avail/req : 0;
   const bd = sumBreakdown(todayRows);
-
-  const critical = PROJECTS.map(p => {
-    const rows = RAW.filter(r => r.project === p);
-    const {todayRows: tr} = latestRowsFor(rows);
-    const r = tr.reduce((a,x)=>a+x.required,0), a = tr.reduce((a,x)=>a+x.available,0);
-    return r ? (r-a)/r > 0.3 : false;
-  }).filter(Boolean).length;
+  const projHealths = computeProjectSummary();
+  const critical = projHealths.filter(p => p.grade === 'Critical').length;
+  const healthy = projHealths.filter(p => p.grade === 'Healthy').length;
 
   el('kpiStrip').innerHTML = `
-    <div class="kpi-cell" style="--accent:var(--blue)"><div class="num">${req.toLocaleString()}</div><div class="lbl">Required — ${fmtDate(latestDate)}</div></div>
-    <div class="kpi-cell" style="--accent:var(--green)"><div class="num">${avail.toLocaleString()}</div><div class="lbl">Available</div></div>
-    <div class="kpi-cell" style="--accent:var(--red)"><div class="num">${shortage.toLocaleString()}</div><div class="lbl">Shortage</div></div>
-    <div class="kpi-cell" style="--accent:var(--gold)"><div class="num">${(fulfil*100).toFixed(1)}%</div><div class="lbl">Fulfilment</div></div>
-    <div class="kpi-cell" style="--accent:${critical>0?'var(--red)':'var(--green)'}"><div class="num" style="color:${critical>0?'var(--red)':'var(--ink)'}">${critical}</div><div class="lbl">Critical Projects</div></div>
-    <div class="kpi-cell" style="--accent:var(--ink)"><div class="num">${PROJECTS.length}</div><div class="lbl">Projects tracked</div></div>
+    <div class="kpi-cell" style="--accent:var(--blue)"><div class="num">${req.toLocaleString()}</div><div class="lbl">Required</div><div class="sub">${fmtDate(latestDate)}</div></div>
+    <div class="kpi-cell" style="--accent:var(--green)"><div class="num">${avail.toLocaleString()}</div><div class="lbl">Available</div><div class="sub">on site today</div></div>
+    <div class="kpi-cell" style="--accent:var(--red)"><div class="num" style="color:${shortage>0?'var(--red)':'var(--ink)'}">${shortage.toLocaleString()}</div><div class="lbl">Shortage</div><div class="sub">gap to plan</div></div>
+    <div class="kpi-cell" style="--accent:var(--gold)"><div class="num">${(fulfil*100).toFixed(1)}%</div><div class="lbl">Fulfilment</div><div class="sub">avail ÷ required</div></div>
+    <div class="kpi-cell" style="--accent:${critical>0?'var(--red)':'var(--green)'}"><div class="num" style="color:${critical>0?'var(--red)':'var(--ink)'}">${critical}</div><div class="lbl">Critical Projects</div><div class="sub">health &lt; 60</div></div>
+    <div class="kpi-cell" style="--accent:var(--green)"><div class="num">${healthy}<span style="font-size:16px;color:var(--ink-faint)">/${PROJECTS.length}</span></div><div class="lbl">Healthy Projects</div><div class="sub">health ≥ 80</div></div>
   `;
 
-  const breakdownLine = document.getElementById('kpiBreakdownLine');
-  if(breakdownLine){
-    breakdownLine.innerHTML = bd.anyBreakdown
-      ? `<b>Skilled</b> — Required ${bd.reqSk.toLocaleString()}, Available ${bd.availSk.toLocaleString()} &nbsp;|&nbsp; <b>Unskilled</b> — Required ${bd.reqUnsk.toLocaleString()}, Available ${bd.availUnsk.toLocaleString()}`
-      : `Skilled/Unskilled breakdown not available for this scope yet — only new PM Portal submissions carry this split.`;
+  el('kpiBreakdownLine').innerHTML = bd.anyBreakdown
+    ? `<b>Skilled</b> — Required ${bd.reqSk.toLocaleString()}, Available ${bd.availSk.toLocaleString()} &nbsp;|&nbsp; <b>Unskilled</b> — Required ${bd.reqUnsk.toLocaleString()}, Available ${bd.availUnsk.toLocaleString()}`
+    : `Skilled/Unskilled breakdown not available for this scope yet — only new PM Portal submissions carry this split.`;
+  const ls = el('labourSynced');
+  if(ls) ls.textContent = `snapshot ${fmtDate(latestDate)}`;
+}
+
+/** Auto-generated executive brief — the 4-6 things worth the CEO's next phone call. */
+function renderBrief(horizon){
+  const items = [];
+  const projHealths = computeProjectSummary();
+  const worst = projHealths[0];
+  const preds = computePredictions(horizon).filter(p => p.enoughData);
+  const {streaks, silent, chronic} = computeChallenges();
+  const cats = computeCategorySummary(RAW).filter(c => c.category !== "Unspecified" && c.shortage > 0);
+  const watch = computeContractorWatchlist(RAW);
+  const improving = projHealths.filter(p => p.momentum > 0.62).sort((a,b) => b.momentum - a.momentum)[0];
+
+  if(worst && worst.grade === 'Critical'){
+    items.push({cls:'risk', icon:'🔴', html:`<b>${worst.project}</b> is your weakest site — health <span class="b-metric">${worst.score}</span>, short <span class="b-metric">${worst.shortage.toLocaleString()}</span> workers today (<span class="b-metric">${(worst.pct*100).toFixed(0)}%</span> of requirement).`});
   }
+  const soonCritical = preds.filter(p => p.daysToCritical !== null && p.daysToCritical > 0 && p.daysToCritical <= horizon).sort((a,b)=>a.daysToCritical-b.daysToCritical)[0];
+  if(soonCritical){
+    items.push({cls:'watch', icon:'⏳', html:`On current trend, <b>${soonCritical.project}</b> crosses the critical line (30% short) in <span class="b-metric">~${soonCritical.daysToCritical} days</span>. Intervene before it does.`});
+  }
+  if(cats.length){
+    const c = cats[0];
+    items.push({cls:'watch', icon:'👷', html:`Biggest category gap: <b>${c.category}</b>${c.isUnskilled ? ' (Unskilled)' : ''} — short <span class="b-metric">${c.shortage.toLocaleString()}</span> across ${c.projects} project${c.projects===1?'':'s'} and ${c.contractors} contractor${c.contractors===1?'':'s'}.`});
+  }
+  if(watch.length){
+    const w = watch[0];
+    items.push({cls:'risk', icon:'📞', html:`First call: <b>${w.name}</b>${w.contact ? ` (<span class="b-metric">${w.contact}</span>)` : ''} — delivered <span class="b-metric">${w.available}</span> of <span class="b-metric">${w.required}</span> promised today on ${w.projects}.`});
+  }
+  if(silent.length){
+    items.push({cls:'info', icon:'🔇', html:`<b>${silent.map(s=>s.project).slice(0,3).join(', ')}</b> ${silent.length===1?'has':'have'} not logged for <span class="b-metric">${silent[0].gap}+ days</span> — no data means no visibility, chase the PM${silent.length===1?'':'s'}.`});
+  }
+  if(streaks.length){
+    const s = streaks[0];
+    items.push({cls:'watch', icon:'📉', html:`<b>${s.project}</b> has now been short <span class="b-metric">${s.days} consecutive logged days</span> — this is structural, not a bad morning.`});
+  }
+  if(improving && improving.grade !== 'Critical'){
+    items.push({cls:'win', icon:'✅', html:`<b>${improving.project}</b> is trending up — best weekly momentum in the portfolio at <span class="b-metric">${(improving.fulfilToday*100).toFixed(0)}%</span> fulfilment today.`});
+  }
+  if(!items.length){
+    items.push({cls:'win', icon:'✅', html:`No red flags detected today — fulfilment healthy across tracked projects. Review the heatmap for early drift.`});
+  }
+
+  el('briefCard').style.display = 'block';
+  el('briefBody').innerHTML = items.slice(0,6).map(i => `
+    <div class="brief-item ${i.cls}"><div class="b-icon">${i.icon}</div><div>${i.html}</div></div>
+  `).join('');
 }
 
-function computeHealth(scoped){
-  const {todayRows} = latestRowsFor(scoped);
-  const req = todayRows.reduce((a,r)=>a+r.required,0);
-  const avail = todayRows.reduce((a,r)=>a+r.available,0);
-  const fulfilToday = req ? avail/req : 1;
-
-  const daily = groupDaily(scoped);
-  const last7 = daily.slice(-7), prev7 = daily.slice(-14,-7);
-  const fulfil7 = last7.length ? last7.reduce((a,d)=>a+(d.required?d.available/d.required:1),0)/last7.length : fulfilToday;
-  const fulfilPrev7 = prev7.length ? prev7.reduce((a,d)=>a+(d.required?d.available/d.required:1),0)/prev7.length : fulfil7;
-  const momentum = Math.max(0, Math.min(1, 0.5 + (fulfil7 - fulfilPrev7)*2));
-
-  const critical = PROJECTS.map(p => {
-    const rows = RAW.filter(r => r.project === p);
-    const {todayRows: tr} = latestRowsFor(rows);
-    const r = tr.reduce((a,x)=>a+x.required,0), a = tr.reduce((a,x)=>a+x.available,0);
-    const pct = r ? (r-a)/r : 0;
-    return pct > 0.3;
-  }).filter(Boolean).length;
-  const criticalRatio = PROJECTS.length ? critical / PROJECTS.length : 0;
-  const criticalControl = 1 - criticalRatio;
-
-  const latest = scoped.reduce((a,b) => a.date > b.date ? a : b).date;
-  const today = new Date(); today.setUTCHours(0,0,0,0);
-  const latestUTC = new Date(Date.UTC(latest.getUTCFullYear(), latest.getUTCMonth(), latest.getUTCDate()));
-  const ageDays = Math.max(0, Math.round((today - latestUTC) / 86400000));
-  const freshness = Math.max(0, 1 - ageDays/7);
-
-  const tradesToday = [...new Set(scoped.filter(r=>r.dateKey===dayKey(latest) && r.trade).map(r=>r.trade))];
-  const tradesOk = tradesToday.filter(t => {
-    const rows = scoped.filter(r => r.trade === t && r.dateKey === dayKey(latest));
-    const r = rows.reduce((a,x)=>a+x.required,0), a = rows.reduce((a,x)=>a+x.available,0);
-    return r ? (a/r) >= 0.85 : true;
-  }).length;
-  const coverage = tradesToday.length ? tradesOk/tradesToday.length : 1;
-
-  const score = Math.round(100 * (fulfilToday*0.35 + momentum*0.2 + criticalControl*0.2 + freshness*0.1 + coverage*0.15));
-  return {score: Math.max(0, Math.min(100, score)), fulfilToday, momentum, criticalControl, freshness, coverage, criticalRatio};
-}
-
-function renderHealthBlock(scoped){
-  const h = computeHealth(scoped);
-  const color = h.score >= 75 ? 'var(--green)' : h.score >= 50 ? 'var(--gold)' : 'var(--red)';
+function renderHealthGauge(scoped, scope){
+  const h = computeHealthFor(scoped);
+  const color = healthColor(h.score);
   const scoreColor = (pct) => pct >= 0.75 ? 'var(--green)' : pct >= 0.5 ? 'var(--gold)' : 'var(--red)';
   const metrics = [
-    {label:'Fulfilment rate (today)', pct: h.fulfilToday},
+    {label:'Fulfilment today', pct: h.fulfilToday},
     {label:'Weekly momentum', pct: h.momentum},
-    {label:'Critical projects control', pct: h.criticalControl},
+    {label:'7-day consistency', pct: h.consistency},
     {label:'Data freshness', pct: h.freshness},
-    {label:'Trade coverage', pct: h.coverage},
   ];
   el('healthCard').innerHTML = `
-    <div class="gauge-wrap">
-      <div class="gauge" style="background:conic-gradient(${color} ${h.score*3.6}deg, var(--bg-soft-2) 0deg);">
-        <div class="gauge-inner">
-          <div class="score" style="color:${color}">${h.score}</div>
-          <div class="score-lbl">Health</div>
-        </div>
+    <div class="gauge" style="background:conic-gradient(${color} ${h.score*3.6}deg, var(--bg-soft-2) 0deg);">
+      <div class="gauge-inner">
+        <div class="score" style="color:${color}">${h.score}</div>
+        <div class="score-lbl">${scope === "__all__" ? "Org Health" : "Project Health"}</div>
       </div>
-      <div class="gauge-caption">Composite of fulfilment, momentum, and coverage across all tracked projects</div>
     </div>
+    <div class="gauge-caption">${scope === "__all__" ? "Composite across all tracked projects" : scope + " — composite health"}</div>
     <div class="metric-bars">
       ${metrics.map(m => `
         <div class="metric-row">
@@ -1194,6 +1125,72 @@ function renderHealthBlock(scoped){
       `).join('')}
     </div>
   `;
+}
+
+function renderProjectGrid(){
+  const rows = computeProjectSummary(); // sorted worst-first
+  el('projGrid').innerHTML = rows.map(p => {
+    const color = healthColor(p.score);
+    return `
+      <div class="proj-card" style="--accent:${color}" onclick="filterToProject('${p.project}')" title="Click to focus dashboard on ${p.project}">
+        <div class="p-name">${p.project}</div>
+        <div class="p-score">${p.score}</div>
+        <div class="p-row"><span>Required</span><span class="v">${p.required.toLocaleString()}</span></div>
+        <div class="p-row"><span>Available</span><span class="v">${p.available.toLocaleString()}</span></div>
+        <div class="p-row"><span>Shortage</span><span class="v" style="color:${p.shortage>0?'var(--red)':'var(--green)'}">${p.shortage.toLocaleString()} (${(p.pct*100).toFixed(0)}%)</span></div>
+        <div class="p-foot">
+          <span>${p.ageDays === 0 ? 'logged today' : p.ageDays + 'd since log'}</span>
+          <span class="p-grade status-pill ${gradePillClass(p.grade)}">${p.grade}</span>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderHeatmap(){
+  const wrap = el('heatmapWrap');
+  const globalLatest = RAW.reduce((a,b) => a.date > b.date ? a : b).date;
+  const days = [];
+  for(let i = 13; i >= 0; i--){
+    const d = new Date(globalLatest.getTime() - i*86400000);
+    days.push({date:d, key:dayKey(d)});
+  }
+  // per project per day fulfilment
+  const cellFor = {};
+  PROJECTS.forEach(p => {
+    cellFor[p] = {};
+    RAW.filter(r => r.project === p).forEach(r => {
+      if(!cellFor[p][r.dateKey]) cellFor[p][r.dateKey] = {required:0, available:0};
+      cellFor[p][r.dateKey].required += r.required;
+      cellFor[p][r.dateKey].available += r.available;
+    });
+  });
+  const colorFor = (f) => f === null ? 'var(--bg-soft-2)'
+    : f >= 0.95 ? '#1f9d55' : f >= 0.85 ? '#7fc99a' : f >= 0.7 ? '#e6b84c' : f >= 0.5 ? '#ef8b5f' : '#e0333f';
+
+  const cols = `170px repeat(${days.length}, minmax(30px, 1fr))`;
+  let html = `<div class="heatmap" style="grid-template-columns:${cols};">`;
+  html += `<div></div>` + days.map(d => `<div class="hm-date">${fmtDate(d.date)}</div>`).join('');
+  PROJECTS.forEach(p => {
+    html += `<div class="hm-label">${p}</div>`;
+    days.forEach(d => {
+      const c = cellFor[p][d.key];
+      const f = c && c.required > 0 ? Math.min(1, c.available/c.required) : (c ? 1 : null);
+      const tip = c
+        ? `${p} · ${fmtDate(d.date)} — ${c.available}/${c.required} (${c.required? (c.available/c.required*100).toFixed(0):100}%)`
+        : `${p} · ${fmtDate(d.date)} — no log`;
+      html += `<div class="hm-cell" style="background:${colorFor(f)};" title="${tip}"></div>`;
+    });
+  });
+  html += `</div>
+    <div class="hm-legend">
+      <span><span class="sw" style="background:#1f9d55"></span>≥95%</span>
+      <span><span class="sw" style="background:#7fc99a"></span>85–95%</span>
+      <span><span class="sw" style="background:#e6b84c"></span>70–85%</span>
+      <span><span class="sw" style="background:#ef8b5f"></span>50–70%</span>
+      <span><span class="sw" style="background:#e0333f"></span>&lt;50%</span>
+      <span><span class="sw" style="background:var(--bg-soft-2);border:1px solid var(--line);"></span>No log</span>
+    </div>`;
+  wrap.innerHTML = html;
 }
 
 function renderStatCards(scoped){
@@ -1214,15 +1211,15 @@ function renderStatCards(scoped){
     {label:'Available', value:avail.toLocaleString(),
      sub: bd.anyBreakdown ? `Sk ${bd.availSk.toLocaleString()} / Unsk ${bd.availUnsk.toLocaleString()}` : `Fulfilment ${(fulfil*100).toFixed(1)}%`,
      color:'var(--green)', spark: daily.slice(-14).map(d=>d.available)},
-    {label:'Shortage', value:shortage.toLocaleString(), sub:'today, org/scope total', color:'var(--red)', spark: daily.slice(-14).map(d=>d.required-d.available)},
+    {label:'Shortage', value:shortage.toLocaleString(), sub:'today, current scope', color:'var(--red)', spark: daily.slice(-14).map(d=>d.required-d.available)},
     {label:'7-Day Avg Shortage', value:avgShortage7.toFixed(1), sub:'trailing week', color:'var(--gold)', spark: movingAverage(daily.slice(-21).map(d=>d.required-d.available),7).slice(-14)},
-    {label:'Fulfilment %', value:(fulfil*100).toFixed(1)+'%', sub:'today, current filter', color:'var(--blue)', spark: daily.slice(-14).map(d=> d.required ? d.available/d.required*100 : 0)},
+    {label:'Fulfilment %', value:(fulfil*100).toFixed(1)+'%', sub:'today, current scope', color:'var(--blue)', spark: daily.slice(-14).map(d=> d.required ? d.available/d.required*100 : 0)},
   ];
 
   el('statGrid').innerHTML = cards.map(c => `
     <div class="stat-card" style="--accent:${c.color}">
       <div class="lbl">${c.label}</div>
-      <div class="val">${c.value}</div>
+      <div class="val">${c.val || c.value}</div>
       <div class="sub">${c.sub}</div>
       ${sparklineSVG(c.spark, c.color)}
     </div>
@@ -1254,13 +1251,14 @@ function renderTrendChart(scoped, horizon){
   charts.trendChart = new Chart(el('trendChart'), {
     type:'line',
     data:{ labels, datasets:[
-      {label:'Daily shortage', data:shortageData, borderColor:'#2f5fdb', backgroundColor:'transparent', tension:0.25, pointRadius:2},
+      {label:'Daily shortage', data:shortageData, borderColor:'#2f5fdb', backgroundColor:'rgba(47,95,219,0.06)', fill:true, tension:0.25, pointRadius:2},
       {label:'7-day average', data:ma7Data, borderColor:'#c9971f', backgroundColor:'transparent', tension:0.25, pointRadius:0, borderWidth:2},
       {label:'Forecast', data:forecastData, borderColor:'#e0333f', backgroundColor:'transparent', borderDash:[6,4], tension:0.1, pointRadius:0, borderWidth:2},
     ]},
     options:{
       responsive:true, maintainAspectRatio:false,
       plugins:{legend:{display:false}},
+      interaction:{mode:'index', intersect:false},
       scales:{
         x:{ticks:{color:'#9aa1ab', maxRotation:0, autoSkip:true}, grid:{color:'#f0f0f0'}},
         y:{ticks:{color:'#9aa1ab'}, grid:{color:'#f0f0f0'}, beginAtZero:true}
@@ -1281,7 +1279,7 @@ function renderDonut(scope, scoped){
   } else {
     const byTower = {};
     todayRows.forEach(r => { if(r.tower) byTower[r.tower] = (byTower[r.tower]||0) + (r.required - r.available); });
-    entries = Object.entries(byTower).filter(([,v]) => v > 0).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    entries = Object.entries(byTower).filter(([,v]) => v > 0).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([t,v]) => ["Tower "+t, v]);
   }
   const titleEl = el('donutTitle'), descEl = el('donutDesc');
   if(titleEl) titleEl.textContent = scope === "__all__" ? "Shortage Share by Project" : `Shortage Share by Tower — ${scope}`;
@@ -1292,7 +1290,6 @@ function renderDonut(scope, scoped){
     el('donutChart').parentElement.innerHTML = '<p class="empty">No shortage today — nothing to break down.</p>';
     return;
   }
-
   charts.donutChart = new Chart(el('donutChart'), {
     type:'doughnut',
     data:{ labels: entries.map(e=>e[0]), datasets:[{data: entries.map(e=>e[1]), backgroundColor: palette, borderWidth:2, borderColor:'#fff'}] },
@@ -1303,103 +1300,53 @@ function renderDonut(scope, scoped){
   });
 }
 
-function renderRiskCards(scope){
-  const list = scope === "__all__" ? PROJECTS : [scope];
-  const trends = list.map(p => {
-    const rows = RAW.filter(r => r.project === p);
-    const daily = groupDaily(rows).slice(-14);
-    if(daily.length < 3) return {project:p, slope:0, latestShortage:0, latestReq:0};
-    const xs = daily.map((_,i)=>i);
-    const ys = daily.map(d => d.required - d.available);
-    const {slope} = linearRegression(xs, ys);
-    return {project:p, slope, latestShortage: ys[ys.length-1], latestReq: daily[daily.length-1].required};
-  }).sort((a,b) => b.slope - a.slope).slice(0, 6);
-
-  el('riskSynced').textContent = `${trends.length} of ${list.length} project${list.length===1?'':'s'} ranked`;
-
-  if(!trends.length){
-    el('riskGrid').innerHTML = '<p class="empty">Not enough logged days yet to compute trends.</p>';
+function renderCategoryChart(scoped){
+  destroyChart('catChart');
+  const cats = computeCategorySummary(scoped).filter(c => c.category !== "Unspecified");
+  const descEl = el('catChartDesc');
+  if(!cats.length){
+    el('catChart').parentElement.innerHTML = '<p class="empty">No Labor Type data yet — new PM Portal submissions carry this. Once PMs log labour categories, this fills in automatically.</p>';
     return;
   }
-
-  el('riskGrid').innerHTML = trends.map(t => {
-    const pct = t.latestReq ? t.latestShortage/t.latestReq : 0;
-    const level = pct > 0.3 ? 'crit' : pct > 0.15 ? 'watch' : 'ok';
-    const levelLabel = pct > 0.3 ? 'Critical' : pct > 0.15 ? 'Watch' : 'On Track';
-    const accent = level === 'crit' ? 'var(--red)' : level === 'watch' ? 'var(--gold)' : 'var(--green)';
-    const arrow = t.slope > 0.05 ? '▲ worsening' : t.slope < -0.05 ? '▼ improving' : '— steady';
-    return `
-      <div class="risk-card" style="--accent:${accent}">
-        <span class="pill ${level}"><span class="pdot"></span>${levelLabel}</span>
-        <div class="pname">${t.project}</div>
-        <div class="ptag">current shortage: ${t.latestShortage.toFixed(0)}</div>
-        <div class="risk-trend">${arrow} <b>${Math.abs(t.slope).toFixed(2)}/day</b></div>
-      </div>`;
-  }).join('');
-}
-
-function renderTradeChart(scoped){
-  destroyChart('tradeChart');
-  const {latestDate} = latestRowsFor(scoped);
-  const todayKey = dayKey(latestDate);
-  const todayRows = scoped.filter(r => r.dateKey === todayKey && r.trade);
-  const byTrade = {};
-  todayRows.forEach(r => {
-    if(!byTrade[r.trade]) byTrade[r.trade] = {required:0, available:0};
-    byTrade[r.trade].required += r.required;
-    byTrade[r.trade].available += r.available;
-  });
-  const entries = Object.entries(byTrade)
-    .map(([trade, v]) => ({trade, shortage: v.required - v.available}))
-    .sort((a,b) => b.shortage - a.shortage)
-    .slice(0, 8);
-
-  if(!entries.length){
-    el('tradeChart').parentElement.innerHTML = '<p class="empty">No Trade column data available for this scope.</p>';
-    return;
-  }
-
-  charts.tradeChart = new Chart(el('tradeChart'), {
+  const entries = cats.slice(0, 10);
+  if(descEl) descEl.textContent = `Today's snapshot · ${cats.length} categor${cats.length===1?'y':'ies'} logged.`;
+  charts.catChart = new Chart(el('catChart'), {
     type:'bar',
-    data:{ labels: entries.map(e=>e.trade), datasets:[
-      {label:'Shortage', data: entries.map(e=>e.shortage), backgroundColor:'#c9971f', borderRadius:4}
-    ]},
+    data:{
+      labels: entries.map(e => e.category + (e.isUnskilled ? ' (Unsk)' : '')),
+      datasets:[
+        {label:'Available', data: entries.map(e=>e.available), backgroundColor:'#1f9d55', borderRadius:4},
+        {label:'Shortage', data: entries.map(e=>Math.max(0,e.shortage)), backgroundColor:'#e0333f', borderRadius:4},
+      ]
+    },
     options:{
+      indexAxis:'y',
       responsive:true, maintainAspectRatio:false,
-      plugins:{legend:{display:false}},
+      plugins:{legend:{position:'bottom', labels:{color:'#6b7280', boxWidth:10, font:{size:11}}}, tooltip:{mode:'index'}},
       scales:{
-        x:{ticks:{color:'#6b7280'}, grid:{display:false}},
-        y:{ticks:{color:'#9aa1ab'}, grid:{color:'#f0f0f0'}, beginAtZero:true}
+        x:{stacked:true, ticks:{color:'#9aa1ab'}, grid:{color:'#f0f0f0'}, beginAtZero:true},
+        y:{stacked:true, ticks:{color:'#6b7280', font:{size:11}}, grid:{display:false}}
       }
     }
   });
 }
 
-/**
- * Grouped bar chart: Skilled shortage vs Unskilled shortage, per Trade.
- * Reuses computeTradeSummary's breakdown data — only shows trades where at
- * least one row has the Skilled/Unskilled split (pre-migration rows are
- * excluded from this specific chart rather than shown as misleading zeros).
- */
 function renderSkillChart(scoped){
   destroyChart('skillChart');
-  const rows = computeTradeSummary(scoped).filter(r => r.bd.anyBreakdown);
+  const rows = computeActivitySummary(scoped).filter(r => r.bd.anyBreakdown);
   const descEl = el('skillChartDesc');
-
   if(!rows.length){
-    el('skillChart').parentElement.innerHTML = '<p class="empty">No Skilled/Unskilled breakdown data available for this scope yet — only new PM Portal submissions carry this split.</p>';
+    el('skillChart').parentElement.innerHTML = '<p class="empty">No Skilled/Unskilled breakdown data for this scope yet.</p>';
     return;
   }
-  if(descEl) descEl.textContent = `Scoped to current filter, today's snapshot — ${rows.length} trade${rows.length===1?'':'s'} with breakdown data.`;
-
+  if(descEl) descEl.textContent = `Today's snapshot — ${rows.length} activit${rows.length===1?'y':'ies'} with breakdown data.`;
   const entries = rows
-    .map(r => ({trade: r.trade, skShortage: r.bd.reqSk - r.bd.availSk, unskShortage: r.bd.reqUnsk - r.bd.availUnsk}))
+    .map(r => ({activity: r.activity, skShortage: Math.max(0, r.bd.reqSk - r.bd.availSk), unskShortage: Math.max(0, r.bd.reqUnsk - r.bd.availUnsk)}))
     .sort((a,b) => (b.skShortage + b.unskShortage) - (a.skShortage + a.unskShortage))
     .slice(0, 8);
-
   charts.skillChart = new Chart(el('skillChart'), {
     type:'bar',
-    data:{ labels: entries.map(e=>e.trade), datasets:[
+    data:{ labels: entries.map(e=>e.activity), datasets:[
       {label:'Skilled shortage', data: entries.map(e=>e.skShortage), backgroundColor:'#2f5fdb', borderRadius:4},
       {label:'Unskilled shortage', data: entries.map(e=>e.unskShortage), backgroundColor:'#c9971f', borderRadius:4}
     ]},
@@ -1414,6 +1361,324 @@ function renderSkillChart(scoped){
   });
 }
 
+function renderCategoryTable(scoped){
+  const cats = computeCategorySummary(scoped);
+  if(!cats.length || (cats.length === 1 && cats[0].category === "Unspecified")){
+    el('catTable').innerHTML = '';
+    return;
+  }
+  const maxShortage = Math.max(1, ...cats.map(c => Math.abs(c.shortage)));
+  el('catTable').innerHTML = `
+    <div class="table-wrap"><table class="data-table">
+      <thead><tr><th>Category</th><th class="num">Required</th><th class="num">Available</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Status</th><th class="num">Projects</th><th class="num">Contractors</th></tr></thead>
+      <tbody>
+        ${cats.map(c => `
+          <tr>
+            <td><b>${c.category}</b>${c.isUnskilled ? '<span class="cat-tag">Unskilled</span>' : ''}${c.category==="Unspecified" ? '<span class="hint" style="margin-left:6px;">(rows without a Labor Type)</span>' : ''}</td>
+            <td class="num">${c.required.toLocaleString()}</td>
+            <td class="num">${c.available.toLocaleString()}</td>
+            ${dataBarCell(c.shortage, maxShortage, c.shortage>0?'#e0333f':'#1f9d55')}
+            <td class="num">${(c.pct*100).toFixed(1)}%</td>
+            <td>${statusPill(c.pct)}</td>
+            <td class="num">${c.projects}</td>
+            <td class="num">${c.contractors}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+}
+
+function renderPredictions(horizon, scope){
+  const preds = computePredictions(horizon).filter(p => scope === "__all__" || p.project === scope);
+  el('predictSynced').textContent = `${horizon}-day horizon · trend on last 14 logged days`;
+  if(!preds.length){
+    el('predictGrid').innerHTML = '<p class="empty">Not enough logged days yet to project trends.</p>';
+    return;
+  }
+  const order = p => p.enoughData ? (p.daysToCritical === 0 ? 0 : p.daysToCritical !== null ? 1 : (p.pctSlope > 0 ? 2 : 3)) : 4;
+  preds.sort((a,b) => order(a) - order(b) || ((a.daysToCritical ?? 99) - (b.daysToCritical ?? 99)));
+  el('predictGrid').innerHTML = preds.map(p => {
+    if(!p.enoughData){
+      return `<div class="predict-card" style="--accent:var(--ink-faint)">
+        <div class="pc-proj">${p.project}</div>
+        <div class="pc-line">Fewer than 3 logged days — no trend yet. Push daily logging to unlock forecasting.</div>
+      </div>`;
+    }
+    const dirIcon = p.pctSlope > 0.002 ? '▲' : p.pctSlope < -0.002 ? '▼' : '—';
+    const dirWord = p.pctSlope > 0.002 ? 'worsening' : p.pctSlope < -0.002 ? 'improving' : 'steady';
+    const dirColor = p.pctSlope > 0.002 ? 'var(--red)' : p.pctSlope < -0.002 ? 'var(--green)' : 'var(--ink-dim)';
+    let eta, accent;
+    if(p.daysToCritical === 0){ eta = '⛔ CRITICAL NOW'; accent = 'var(--red)'; }
+    else if(p.daysToCritical !== null){ eta = `⏳ critical in ~${p.daysToCritical} day${p.daysToCritical===1?'':'s'}`; accent = 'var(--gold)'; }
+    else if(p.pctSlope > 0.002){ eta = '↗ rising, beyond 60-day window'; accent = 'var(--gold)'; }
+    else { eta = '✓ no critical crossing projected'; accent = 'var(--green)'; }
+    return `
+      <div class="predict-card" style="--accent:${accent}">
+        <div class="pc-proj">${p.project}</div>
+        <div class="pc-line">Now short <b>${(p.currentPct*100).toFixed(0)}%</b> (${p.currentShortage.toLocaleString()} workers) · trend <span style="color:${dirColor};font-weight:700;">${dirIcon} ${dirWord}</span></div>
+        <div class="pc-line">Projected in ${horizon}d: <b>${(p.projPct*100).toFixed(0)}%</b> short (~${p.projShortage.toLocaleString()} workers)</div>
+        <div class="pc-eta" style="color:${accent}">${eta}</div>
+      </div>`;
+  }).join('');
+}
+
+function renderTopAttentionTable(){
+  const rows = computeProjectSummary().filter(r => r.pct > 0).sort((a,b) => b.pct - a.pct).slice(0, 5);
+  if(!rows.length){
+    el('topAttentionTable').innerHTML = '<div class="empty">No projects currently short — nothing needs immediate attention.</div>';
+    return;
+  }
+  el('topAttentionTable').innerHTML = `
+    <div class="table-wrap"><table class="data-table">
+      <thead><tr><th>Rank</th><th>Project</th><th class="num">Health</th><th class="num">Req (Sk/Unsk)</th><th class="num">Avail (Sk/Unsk)</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Status</th></tr></thead>
+      <tbody>
+        ${rows.map((r,i) => `
+          <tr class="clickable-row" onclick="filterToProject('${r.project}')">
+            <td>${i+1}</td>
+            <td><b>${r.project}</b></td>
+            <td class="num" style="color:${healthColor(r.score)};font-weight:700;">${r.score}</td>
+            <td class="num">${skUnskCompact(r.bd.reqSk, r.bd.reqUnsk, r.bd.anyBreakdown)}</td>
+            <td class="num">${skUnskCompact(r.bd.availSk, r.bd.availUnsk, r.bd.anyBreakdown)}</td>
+            <td class="num">${r.shortage.toLocaleString()}</td>
+            <td class="num">${(r.pct*100).toFixed(1)}%</td>
+            <td>${statusPill(r.pct)}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+}
+
+function renderProjectSummaryTable(){
+  const rows = computeProjectSummary().sort((a,b) => b.pct - a.pct);
+  const maxShortage = Math.max(1, ...rows.map(r => Math.abs(r.shortage)));
+  el('projectSummaryTable').innerHTML = `
+    <div class="table-wrap"><table class="data-table">
+      <thead><tr><th>Sr.</th><th>Project</th><th class="num">Health</th><th class="num">Required</th><th class="num">Req (Sk/Unsk)</th><th class="num">Available</th><th class="num">Avail (Sk/Unsk)</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Status</th><th class="num">Fulfilment %</th></tr></thead>
+      <tbody>
+        ${rows.map((r,i) => `
+          <tr class="clickable-row" onclick="filterToProject('${r.project}')" title="Click to view ${r.project} only">
+            <td>${i+1}</td>
+            <td><b>${r.project}</b></td>
+            <td class="num" style="color:${healthColor(r.score)};font-weight:700;">${r.score}</td>
+            <td class="num">${r.required.toLocaleString()}</td>
+            <td class="num">${skUnskCompact(r.bd.reqSk, r.bd.reqUnsk, r.bd.anyBreakdown)}</td>
+            <td class="num">${r.available.toLocaleString()}</td>
+            <td class="num">${skUnskCompact(r.bd.availSk, r.bd.availUnsk, r.bd.anyBreakdown)}</td>
+            ${dataBarCell(r.shortage, maxShortage, r.shortage>0?'#e0333f':'#1f9d55')}
+            <td class="num">${(r.pct*100).toFixed(1)}%</td>
+            <td>${statusPill(r.pct)}</td>
+            <td class="num">${(r.fulfil*100).toFixed(1)}%</td>
+          </tr>`).join('')}
+        <tr style="background:var(--bg-soft-2);font-weight:700;">
+          <td></td><td>TOTAL</td><td></td>
+          <td class="num">${rows.reduce((a,r)=>a+r.required,0).toLocaleString()}</td>
+          <td></td>
+          <td class="num">${rows.reduce((a,r)=>a+r.available,0).toLocaleString()}</td>
+          <td></td>
+          <td class="num">${rows.reduce((a,r)=>a+r.shortage,0).toLocaleString()}</td>
+          <td colspan="3"></td>
+        </tr>
+      </tbody>
+    </table></div>`;
+}
+
+function toggleTowerDetail(safeId){
+  const row = document.getElementById('towerDetail-' + safeId);
+  const arrow = document.getElementById('towerArrow-' + safeId);
+  if(!row) return;
+  const isHidden = row.classList.contains('hidden');
+  row.classList.toggle('hidden');
+  if(arrow) arrow.textContent = isHidden ? '▾' : '▸';
+}
+
+function renderTowerSection(scope, scoped){
+  const container = el('towerSection');
+  if(scope === "__all__"){
+    container.innerHTML = `
+      <div class="section-head"><div class="tag" style="font-size:15px;">Tower Level</div></div>
+      <div class="empty" style="border:1px dashed var(--line);border-radius:10px;">Focus on a project (click any card or row) to see its tower-by-tower breakdown with activity &amp; category detail.</div>`;
+    return;
+  }
+  const rows = computeTowerSummary(scoped);
+  if(!rows.length){
+    container.innerHTML = `
+      <div class="section-head"><div class="tag" style="font-size:15px;">Tower Level — ${scope}</div></div>
+      <div class="empty">No tower data logged yet for this project.</div>`;
+    return;
+  }
+  const maxShortage = Math.max(1, ...rows.map(r => Math.abs(r.shortage)));
+  container.innerHTML = `
+    <div class="section-head"><div class="tag" style="font-size:15px;">Tower Level — ${scope}</div><div class="synced">${rows.length} towers, today — click a row for activity &amp; category detail</div></div>
+    <div class="table-wrap"><table class="data-table">
+      <thead><tr><th></th><th>Tower</th><th class="num">Required</th><th class="num">Req (Sk/Unsk)</th><th class="num">Available</th><th class="num">Avail (Sk/Unsk)</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Status</th></tr></thead>
+      <tbody>
+        ${rows.map(r => {
+          const safeId = safeIdFor(r.tower);
+          const detail = computeTowerActivityBreakdown(scoped, r.tower);
+          const detailRows = detail.length
+            ? detail.map(d => `<tr><td>${d.label}</td><td>${d.contractors}</td><td class="num">${d.required}</td><td class="num">${d.available}</td><td class="num" style="color:${d.shortage>0?'var(--red)':'var(--green)'};font-weight:600;">${d.shortage}</td></tr>`).join('')
+            : `<tr><td colspan="5" style="color:var(--ink-dim);">No activity-level data for this tower yet.</td></tr>`;
+          return `
+          <tr class="clickable-row" onclick="toggleTowerDetail('${safeId}')">
+            <td><span id="towerArrow-${safeId}" style="color:var(--ink-faint);">▸</span></td>
+            <td><b>Tower ${r.tower}</b></td>
+            <td class="num">${r.required.toLocaleString()}</td>
+            <td class="num">${skUnskCompact(r.bd.reqSk, r.bd.reqUnsk, r.bd.anyBreakdown)}</td>
+            <td class="num">${r.available.toLocaleString()}</td>
+            <td class="num">${skUnskCompact(r.bd.availSk, r.bd.availUnsk, r.bd.anyBreakdown)}</td>
+            ${dataBarCell(r.shortage, maxShortage, r.shortage>0?'#e0333f':'#1f9d55')}
+            <td class="num">${(r.pct*100).toFixed(1)}%</td>
+            <td>${statusPill(r.pct)}</td>
+          </tr>
+          <tr id="towerDetail-${safeId}" class="hidden">
+            <td colspan="9" style="background:var(--bg-soft);padding:12px 12px 12px 34px;">
+              <table class="mini-table" style="margin:0;">
+                <thead><tr><th>Activity · Category</th><th>Contractor(s)</th><th class="num">Req</th><th class="num">Avail</th><th class="num">Short</th></tr></thead>
+                <tbody>${detailRows}</tbody>
+              </table>
+            </td>
+          </tr>`;
+        }).join('')}
+        <tr style="background:var(--bg-soft-2);font-weight:700;">
+          <td></td><td>TOTAL</td>
+          <td class="num">${rows.reduce((a,r)=>a+r.required,0).toLocaleString()}</td>
+          <td></td>
+          <td class="num">${rows.reduce((a,r)=>a+r.available,0).toLocaleString()}</td>
+          <td></td>
+          <td class="num">${rows.reduce((a,r)=>a+r.shortage,0).toLocaleString()}</td>
+          <td colspan="2"></td>
+        </tr>
+      </tbody>
+    </table></div>`;
+}
+
+function showContractorTab(which){
+  const watchView = el('contractorWatchView');
+  const topView = el('contractorTopView');
+  if(!watchView || !topView) return;
+  if(which === 'top'){
+    watchView.classList.add('hidden');
+    topView.classList.remove('hidden');
+    el('contractorTabWatchBtn').classList.remove('active');
+    el('contractorTabTopBtn').classList.add('active');
+    renderContractorTop();
+  } else {
+    watchView.classList.remove('hidden');
+    topView.classList.add('hidden');
+    el('contractorTabWatchBtn').classList.add('active');
+    el('contractorTabTopBtn').classList.remove('active');
+  }
+}
+function gradeClass(grade){
+  return {Excellent:'excellent', Good:'good', Watch:'watch', Poor:'poor'}[grade] || 'watch';
+}
+
+function renderContractorWatchlist(scoped){
+  const rows = computeContractorWatchlist(scoped);
+  const container = el('contractorWatchlist');
+  const callContainer = el('topContractorsCall');
+  if(!rows.length){
+    container.innerHTML = '<div class="empty">No contractor shortfalls today in this scope — or the Contractor column is still empty in Master Raw.</div>';
+    callContainer.innerHTML = '';
+    return;
+  }
+  const maxShortage = Math.max(1, ...rows.map(r => Math.abs(r.shortage)));
+  container.innerHTML = `
+    <div class="table-wrap scrollable"><table class="data-table">
+      <thead><tr><th>Contractor</th><th>Site Contact</th><th>Activity</th><th>Category</th><th class="num">Contact</th><th class="num">Available</th><th class="num">Required</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Projects</th><th>Tower</th></tr></thead>
+      <tbody>
+        ${rows.map(r => `
+          <tr>
+            <td><b>${r.name}</b></td>
+            <td>${r.siteContactName||'—'}</td>
+            <td>${r.activities}</td>
+            <td>${r.categories}</td>
+            <td class="num">${r.contact||'—'}</td>
+            <td class="num">${r.available.toLocaleString()}</td>
+            <td class="num">${r.required.toLocaleString()}</td>
+            ${dataBarCell(r.shortage, maxShortage, '#e0333f')}
+            <td class="num">${(r.pct*100).toFixed(1)}%</td>
+            <td>${r.projects}</td>
+            <td>${r.towers}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+
+  const top5 = rows.slice(0,5);
+  callContainer.innerHTML = `
+    <div class="table-wrap"><table class="data-table">
+      <thead><tr><th>Rank</th><th>Contractor</th><th>Site Contact</th><th>Activity</th><th class="num">Contact</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Projects</th><th>Tower</th></tr></thead>
+      <tbody>
+        ${top5.map((r,i) => `
+          <tr>
+            <td>${i+1}</td>
+            <td><b>${r.name}</b></td>
+            <td>${r.siteContactName||'—'}</td>
+            <td>${r.activities}</td>
+            <td class="num">${r.contact||'—'}</td>
+            <td class="num">${r.shortage.toLocaleString()}</td>
+            <td class="num">${(r.pct*100).toFixed(1)}%</td>
+            <td>${r.projects}</td>
+            <td>${r.towers}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+}
+
+function renderContractorTop(){
+  const container = el('contractorTopTable');
+  if(!container) return;
+  const rows = computeContractorPerformance(30);
+  if(!rows.length){
+    container.innerHTML = '<div class="empty">Not enough contractor data logged yet to rank performance.</div>';
+    return;
+  }
+  container.innerHTML = `
+    <div class="table-wrap scrollable"><table class="data-table">
+      <thead><tr><th>Rank</th><th>Contractor</th><th>Activity</th><th>Category</th><th>Grade</th><th class="num">Score</th><th class="num">Avg Fulfilment</th><th class="num">Consistency</th><th>Trend</th><th class="num">Days Tracked</th><th>Projects</th></tr></thead>
+      <tbody>
+        ${rows.map((r,i) => {
+          const trendLabel = r.trend > 0.03 ? '▲ Improving' : r.trend < -0.03 ? '▼ Declining' : '— Steady';
+          const trendColor = r.trend > 0.03 ? 'var(--green)' : r.trend < -0.03 ? 'var(--red)' : 'var(--ink-dim)';
+          return `
+          <tr>
+            <td>${i+1}</td>
+            <td><b>${r.name}</b></td>
+            <td>${r.activities}</td>
+            <td>${r.categories}</td>
+            <td><span class="grade-pill ${gradeClass(r.grade)}">${r.grade}</span></td>
+            <td class="num" style="font-weight:700;">${r.composite}</td>
+            <td class="num">${(r.avgFulfil*100).toFixed(1)}%</td>
+            <td class="num">${(r.consistency*100).toFixed(0)}%</td>
+            <td style="color:${trendColor};font-weight:600;">${trendLabel}</td>
+            <td class="num">${r.daysTracked}</td>
+            <td>${r.projects}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table></div>`;
+}
+
+function renderChallenges(){
+  const {streaks, silent, chronic} = computeChallenges();
+  const card = (title, icon, items, emptyMsg) => `
+    <div class="challenge-card">
+      <div class="ch-head">${icon} ${title}<span class="ch-count ${items.length ? '' : 'zero'}">${items.length}</span></div>
+      ${items.length ? `<ul>${items.join('')}</ul>` : `<div class="ch-empty">${emptyMsg}</div>`}
+    </div>`;
+
+  const streakItems = streaks.slice(0,6).map(s =>
+    `<li><b>${s.project}</b> — short for <span class="m">${s.days} consecutive logged days</span>, currently <span class="m">${s.shortage.toLocaleString()}</span> workers down. Structural gap, not a one-off.</li>`);
+  const silentItems = silent.slice(0,6).map(s =>
+    `<li><b>${s.project}</b> — no log for <span class="m">${s.gap} days</span> (last: ${fmtDate(s.lastDate)}). Chase the PM; blind sites carry hidden risk.</li>`);
+  const chronicItems = chronic.map(c =>
+    `<li><b>${c.project}</b> · ${c.activity} — averaging <span class="m">${(c.avgPct*100).toFixed(0)}% short</span> over ${c.days} logged days in the last 2 weeks.</li>`);
+
+  el('challengeGrid').innerHTML =
+    card('Persistent Shortage Streaks', '📉', streakItems, 'No project has been short 3+ consecutive days. Good discipline.') +
+    card('Silent Sites (Not Logging)', '🔇', silentItems, 'Every project has logged within the last 2 days. Full visibility.') +
+    card('Chronic Activity Gaps (14d)', '🛠', chronicItems, 'No activity is chronically under-manned in the last two weeks.');
+}
+
+/* =============================== BOOT =============================== */
 el('refreshBtn').addEventListener('click', loadData);
 el('projectFilter').addEventListener('change', render);
 el('horizonFilter').addEventListener('change', render);
