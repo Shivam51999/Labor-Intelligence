@@ -40,6 +40,17 @@
   .two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
   .badge{display:inline-block;font-size:11px;font-weight:700;color:var(--ink-dim);background:#eee;border-radius:100px;padding:3px 10px;margin-bottom:8px;}
 
+  /* ---------- Tower multi-select chips ---------- */
+  .chip-group{display:flex;flex-wrap:wrap;gap:8px;margin-top:2px;}
+  .chip{
+    width:auto;margin:0;padding:9px 16px;border-radius:100px;font-size:14px;font-weight:600;
+    background:#fff;color:var(--ink);border:1.5px solid var(--line);cursor:pointer;
+  }
+  .chip.selected{background:var(--red);color:#fff;border-color:var(--red);}
+  .chip:disabled{opacity:0.45;cursor:not-allowed;background:#f0f0f0;color:var(--ink-dim);border-style:dashed;}
+  .chip-hint{font-size:11px;color:var(--ink-dim);margin-top:6px;}
+  .chip-hint.warn{color:var(--gold);}
+
   .top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
   .top-bar .who{font-size:13px;color:var(--ink-dim);}
   .top-bar .who b{color:var(--ink);}
@@ -73,7 +84,7 @@
   <header>
     <p><span class="dot"></span>MANGALAM LANDMARKS</p>
     <h1>Daily Labour Log</h1>
-    <p>Fill this in once a day, per tower.</p>
+    <p>Fill this in once a day — tag each entry to all the towers it covers.</p>
   </header>
 
   <div class="card" id="loginCard">
@@ -98,10 +109,9 @@
 
     <div id="logView">
       <div class="card">
-        <label for="towerSelect">Tower</label>
-        <select id="towerSelect"><option value="">Select tower…</option></select>
         <label for="dateInput">Date</label>
         <input type="date" id="dateInput">
+        <div class="hint">Towers are picked inside each activity below — select every tower where that same contractor is doing that activity.</div>
       </div>
 
       <div id="rowsContainer"></div>
@@ -215,9 +225,6 @@ async function onLoggedIn(){
 
   try {
     PROJECT_CONFIG = await callApi("getProjectConfig", {project: CURRENT_USER.project});
-    const towerSel = el("towerSelect");
-    towerSel.innerHTML = '<option value="">Select tower…</option>' +
-      PROJECT_CONFIG.towers.map(t => `<option value="${t}">Tower ${t}</option>`).join('');
     addRow();
   } catch (err) {
     el("submitError").innerHTML = `<div class="error">Couldn't load project config: ${err.message}</div>`;
@@ -319,59 +326,172 @@ function addRow(){
       <option value="">Select activity…</option>
       ${PROJECT_CONFIG.activities.map(a => `<option value="${a}">${a}</option>`).join('')}
     </select>
-    <label>Sub Activity <span class="hint" style="display:inline;">(optional)</span></label>
-    <select id="subact-${id}"><option value="">— pick Activity first —</option></select>
     <label>Labor Type <span class="hint" style="display:inline;">(optional)</span></label>
-    <select id="labortype-${id}"><option value="">— pick Activity first —</option></select>
+    <select id="labortype-${id}" onchange="onComboChange(${id})"><option value="">— pick Activity first —</option></select>
     <label>Contractor</label>
-    <select id="contractor-${id}"><option value="">— pick Activity first —</option></select>
+    <select id="contractor-${id}" onchange="onComboChange(${id})"><option value="">— pick Activity first —</option></select>
     <div class="hint" id="contact-${id}"></div>
-    <label id="reqLabel-${id}">Required</label>
+    <label>Towers</label>
+    <div class="chip-group" id="towers-${id}">
+      ${PROJECT_CONFIG.towers.map(t => `<button type="button" class="chip" data-tower="${t}" onclick="toggleTower(${id}, this)">Tower ${t}</button>`).join('')}
+    </div>
+    <div class="chip-hint" id="towerHint-${id}">Tap every tower this entry covers — the same counts will be logged once per tower.</div>
+    <label id="reqLabel-${id}">Required <span class="hint" style="display:inline;">(per tower)</span></label>
     <div class="hint" id="reqNote-${id}"></div>
     <div class="two-col">
       <input type="number" min="0" id="reqSk-${id}" placeholder="Skilled">
       <input type="number" min="0" id="reqUnsk-${id}" placeholder="Unskilled">
     </div>
-    <label>Available</label>
+    <label>Available <span class="hint" style="display:inline;">(per tower)</span></label>
     <div class="two-col">
       <input type="number" min="0" id="availSk-${id}" placeholder="Skilled">
       <input type="number" min="0" id="availUnsk-${id}" placeholder="Unskilled">
     </div>
   `;
   el("rowsContainer").appendChild(div);
+  refreshAllTowerChips();
 }
 
 function removeRow(id){
   const row = el("row-" + id);
   if (row) row.remove();
+  refreshAllTowerChips();
+}
+
+// ---------- Tower multi-select + duplicate filtering ----------
+// A "combo" is Activity + Labor Type + Contractor. The same combo must not be
+// logged twice for the same tower — so a tower already selected in another
+// row with an identical combo shows up disabled here.
+
+function rowIds(){
+  return [...document.querySelectorAll(".row-card")].map(d => d.id.split("-")[1]);
+}
+
+function getRowState(id){
+  const val = (elemId) => { const e = el(elemId); return e ? String(e.value || "").trim() : ""; };
+  const towers = [...document.querySelectorAll(`#towers-${id} .chip.selected`)].map(c => c.dataset.tower);
+  return {
+    id,
+    activity: val("activity-" + id),
+    laborType: val("labortype-" + id),
+    contractor: val("contractor-" + id),
+    towers
+  };
+}
+
+function comboKey(s){
+  return [s.activity, s.laborType, s.contractor].map(x => x.toLowerCase()).join("|");
+}
+
+function toggleTower(id, chip){
+  if (chip.disabled) return;
+  chip.classList.toggle("selected");
+  refreshAllTowerChips();
+  scheduleRequirementLoad(id);
+}
+
+/** Recomputes, for every row, which tower chips must be disabled because an
+ *  identical combo in ANOTHER row already claims that tower. */
+function refreshAllTowerChips(){
+  const states = rowIds().map(getRowState);
+  states.forEach(s => {
+    // towers taken by other rows with the same combo (only meaningful once an activity is chosen)
+    const taken = {}; // tower -> other row id
+    if (s.activity) {
+      states.forEach(o => {
+        if (o.id !== s.id && o.activity && comboKey(o) === comboKey(s)) {
+          o.towers.forEach(t => { taken[t] = o.id; });
+        }
+      });
+    }
+    const group = el("towers-" + s.id);
+    if (!group) return;
+    let deselected = false;
+    group.querySelectorAll(".chip").forEach(chip => {
+      const t = chip.dataset.tower;
+      if (taken[t] !== undefined) {
+        if (chip.classList.contains("selected")) { chip.classList.remove("selected"); deselected = true; }
+        chip.disabled = true;
+        chip.title = "Already covered by Activity " + taken[t] + " for this same Activity/Labor Type/Contractor";
+      } else {
+        chip.disabled = false;
+        chip.title = "";
+      }
+    });
+    const hint = el("towerHint-" + s.id);
+    if (hint) {
+      const takenList = Object.keys(taken);
+      if (takenList.length) {
+        hint.className = "chip-hint warn";
+        hint.textContent = "Tower " + takenList.join(", ") + " already logged in another card for this same combination — greyed out here to avoid a duplicate.";
+      } else {
+        hint.className = "chip-hint";
+        hint.textContent = "Tap every tower this entry covers — the same counts will be logged once per tower.";
+      }
+    }
+    if (deselected) scheduleRequirementLoad(s.id);
+  });
+}
+
+function onComboChange(id){
+  refreshAllTowerChips();
 }
 
 /**
- * Locks or unlocks the Required inputs for a row based on whether this
- * week's requirement has already been set (isSet). Locked = read-only with
- * a "Change this week's requirement" link to override if the plan changed.
+ * Requirement lock, multi-tower edition. Fetches this week's Required for
+ * ALL selected towers in one batch call:
+ *  - every selected tower already set, all with identical values -> locked
+ *  - none set -> editable, fresh entry applies to every selected tower
+ *  - mixed (some set / different values) -> editable, with a clear note that
+ *    submitting will set/override this week's Required for ALL selected towers
  */
-function applyRequirementLock(id, req){
+const REQ_LOAD_TIMERS = {};
+function scheduleRequirementLoad(id){
+  clearTimeout(REQ_LOAD_TIMERS[id]);
+  REQ_LOAD_TIMERS[id] = setTimeout(() => loadRequirementForRow(id), 400);
+}
+
+async function loadRequirementForRow(id){
+  const s = getRowState(id);
+  const noteEl = el("reqNote-" + id);
+  if (!s.activity || !s.towers.length) { if (noteEl) noteEl.textContent = ""; return; }
+  try {
+    const res = await callApi("getRequirementsBatch", {project: CURRENT_USER.project, towers: s.towers, activity: s.activity});
+    applyRequirementLock(id, s.towers, res.perTower || {});
+  } catch (err) { /* non-fatal — PM can just type it in fresh */ }
+}
+
+function applyRequirementLock(id, towers, perTower){
   const reqSkEl = el("reqSk-" + id);
   const reqUnskEl = el("reqUnsk-" + id);
   const noteEl = el("reqNote-" + id);
+  if (!reqSkEl || !reqUnskEl || !noteEl) return;
 
-  if (req.isSet) {
-    reqSkEl.value = req.reqSkilled;
-    reqUnskEl.value = req.reqUnskilled;
+  const entries = towers.map(t => perTower[t] || {isSet: false});
+  const allSet = entries.length && entries.every(e => e.isSet);
+  const sameValues = allSet && entries.every(e =>
+    e.reqSkilled === entries[0].reqSkilled && e.reqUnskilled === entries[0].reqUnskilled);
+
+  if (allSet && sameValues) {
+    reqSkEl.value = entries[0].reqSkilled;
+    reqUnskEl.value = entries[0].reqUnskilled;
     reqSkEl.readOnly = true;
     reqUnskEl.readOnly = true;
     reqSkEl.style.background = "#f2f2f2";
     reqUnskEl.style.background = "#f2f2f2";
-    noteEl.innerHTML = `Set for this week (Mon–Sun) — <a href="#" onclick="unlockRequirement(${id}); return false;" style="color:var(--red);">change this week's requirement</a>`;
+    noteEl.innerHTML = `Set for this week (Mon–Sun) for tower${towers.length>1?'s':''} ${towers.join(", ")} — <a href="#" onclick="unlockRequirement(${id}); return false;" style="color:var(--red);">change this week's requirement</a>`;
   } else {
-    reqSkEl.value = "";
-    reqUnskEl.value = "";
     reqSkEl.readOnly = false;
     reqUnskEl.readOnly = false;
     reqSkEl.style.background = "#fff";
     reqUnskEl.style.background = "#fff";
-    noteEl.textContent = "Not set yet this week — enter it now; it'll apply Mon–Sun.";
+    const setTowers = towers.filter(t => (perTower[t] || {}).isSet);
+    if (!setTowers.length) {
+      noteEl.textContent = "Not set yet this week — enter it now; it'll apply Mon–Sun to every selected tower.";
+    } else {
+      noteEl.textContent = "Already set this week for tower " + setTowers.join(", ") +
+        " (values differ or partial) — whatever you enter here will set/override this week's Required for ALL selected towers.";
+    }
   }
 }
 
@@ -395,18 +515,23 @@ function contactHintText(m){
 
 async function onActivityChange(id){
   const activity = el("activity-" + id).value;
-  const contractorSel = el("contractor-" + id);
+  let contractorSel = el("contractor-" + id);
+  // If a previous activity had no mapped contractors, this element became a
+  // free-text input — swap it back to a select before repopulating.
+  if (contractorSel && contractorSel.tagName === "INPUT") {
+    const sel = document.createElement("select");
+    sel.id = "contractor-" + id;
+    contractorSel.replaceWith(sel);
+    contractorSel = sel;
+  }
   const contactHint = el("contact-" + id);
-  const subactSel = el("subact-" + id);
   const labortypeSel = el("labortype-" + id);
-  const tower = el("towerSelect").value;
-  contractorSel.innerHTML = '<option value="">Loading…</option>';
+  if (contractorSel.tagName === "SELECT") contractorSel.innerHTML = '<option value="">Loading…</option>';
   contactHint.textContent = "";
-  subactSel.innerHTML = '<option value="">Loading…</option>';
   labortypeSel.innerHTML = '<option value="">Loading…</option>';
+  refreshAllTowerChips();
   if (!activity) {
-    contractorSel.innerHTML = '<option value="">— pick Activity first —</option>';
-    subactSel.innerHTML = '<option value="">— pick Activity first —</option>';
+    if (contractorSel.tagName === "SELECT") contractorSel.innerHTML = '<option value="">— pick Activity first —</option>';
     labortypeSel.innerHTML = '<option value="">— pick Activity first —</option>';
     return;
   }
@@ -424,36 +549,20 @@ async function onActivityChange(id){
     labortypeSel.innerHTML = `<option value="">(error: ${err.message})</option>`;
   }
 
-  // Sub Activity — optional, scoped to this Project + Activity
-  try {
-    const subActs = await callApi("getSubActivitiesFor", {project: CURRENT_USER.project, activity});
-    if (!subActs.length) {
-      subactSel.innerHTML = '<option value="">(none configured)</option>';
-    } else {
-      subactSel.innerHTML = '<option value="">Select sub activity…</option>' +
-        subActs.map(s => `<option value="${s}">${s}</option>`).join('');
-    }
-  } catch (err) {
-    subactSel.innerHTML = `<option value="">(error: ${err.message})</option>`;
-  }
-
-  // Required — locked for the week once it's been set; PM can override via a link.
-  if (tower) {
-    try {
-      const req = await callApi("getRequirement", {project: CURRENT_USER.project, tower, activity});
-      applyRequirementLock(id, req);
-    } catch (err) { /* non-fatal — PM can just type it in fresh */ }
-  }
+  // Required — locked for the week once it's been set (per selected towers).
+  scheduleRequirementLoad(id);
 
   try {
     const matches = await callApi("getContractorsFor", {project: CURRENT_USER.project, activity});
     if (!matches.length) {
-      const parent = contractorSel.parentElement;
-      const textInput = document.createElement("input");
-      textInput.type = "text";
-      textInput.id = "contractor-" + id;
-      textInput.placeholder = "Contractor name";
-      contractorSel.replaceWith(textInput);
+      if (contractorSel.tagName === "SELECT") {
+        const textInput = document.createElement("input");
+        textInput.type = "text";
+        textInput.id = "contractor-" + id;
+        textInput.placeholder = "Contractor name";
+        textInput.oninput = () => onComboChange(id);
+        contractorSel.replaceWith(textInput);
+      }
     } else if (matches.length === 1) {
       contractorSel.innerHTML = `<option value="${matches[0].contractor}" selected data-contact="${matches[0].contact||''}" data-sitename="${matches[0].siteContactName||''}">${matches[0].contractor}</option>`;
       contactHint.textContent = contactHintText(matches[0]);
@@ -463,47 +572,55 @@ async function onActivityChange(id){
       contractorSel.onchange = () => {
         const opt = contractorSel.selectedOptions[0];
         contactHint.textContent = contactHintText({contact: opt.dataset.contact, siteContactName: opt.dataset.sitename});
+        onComboChange(id); // keep duplicate filtering in sync with contractor choice
       };
     }
   } catch (err) {
-    contractorSel.innerHTML = '<option value="">Could not load — type manually</option>';
+    if (contractorSel.tagName === "SELECT") contractorSel.innerHTML = '<option value="">Could not load — type manually</option>';
   }
+  refreshAllTowerChips();
 }
 
 el("addRowBtn").addEventListener("click", addRow);
 
 // ---------- Submit ----------
 el("submitBtn").addEventListener("click", async () => {
-  const tower = el("towerSelect").value;
   const date = el("dateInput").value;
   el("submitError").innerHTML = "";
   el("submitSuccess").classList.add("hidden");
-
-  if (!tower) { el("submitError").innerHTML = '<div class="error">Select a tower.</div>'; return; }
 
   const rowDivs = document.querySelectorAll(".row-card");
   if (!rowDivs.length) { el("submitError").innerHTML = '<div class="error">Add at least one activity.</div>'; return; }
 
   const rows = [];
+  const seen = new Set(); // final safety net against Tower+Activity+LaborType+Contractor duplicates
   for (const div of rowDivs) {
     const id = div.id.split("-")[1];
-    const activityEl = el("activity-" + id);
+    const s = getRowState(id);
+    if (!s.activity) continue;
+    if (!s.towers.length) {
+      el("submitError").innerHTML = `<div class="error">Activity ${id} (${s.activity}): select at least one tower.</div>`;
+      return;
+    }
     const contractorEl = el("contractor-" + id);
-    const subactEl = el("subact-" + id);
-    const labortypeEl = el("labortype-" + id);
-    const activity = activityEl ? activityEl.value : "";
-    const subActivity = subactEl ? subactEl.value : "";
-    const laborType = labortypeEl ? labortypeEl.value : "";
-    const contractor = contractorEl ? contractorEl.value : "";
     let contact = "";
     let siteContactName = "";
     if (contractorEl && contractorEl.selectedOptions && contractorEl.selectedOptions[0]) {
       contact = contractorEl.selectedOptions[0].dataset.contact || "";
       siteContactName = contractorEl.selectedOptions[0].dataset.sitename || "";
     }
-    if (!activity) continue;
+    for (const t of s.towers) {
+      const dupKey = (t + "|" + comboKey(s)).toLowerCase();
+      if (seen.has(dupKey)) {
+        el("submitError").innerHTML = `<div class="error">Duplicate: Tower ${t} · ${s.activity}${s.laborType ? " · " + s.laborType : ""}${s.contractor ? " · " + s.contractor : ""} appears in more than one card. Remove one before submitting.</div>`;
+        return;
+      }
+      seen.add(dupKey);
+    }
     rows.push({
-      activity, subActivity, laborType, contractor, contact, siteContactName,
+      towers: s.towers,
+      activity: s.activity, laborType: s.laborType,
+      contractor: s.contractor, contact, siteContactName,
       reqSkilled: el("reqSk-" + id).value, reqUnskilled: el("reqUnsk-" + id).value,
       availSkilled: el("availSk-" + id).value, availUnskilled: el("availUnsk-" + id).value,
     });
@@ -515,15 +632,16 @@ el("submitBtn").addEventListener("click", async () => {
   el("submitBtn").innerHTML = '<span class="spinner"></span>Submitting…';
 
   try {
-    const res = await callApi("submitLog", {pmName: CURRENT_USER.name, project: CURRENT_USER.project, tower, dateStr: date, rows});
+    const res = await callApi("submitLog", {pmName: CURRENT_USER.name, project: CURRENT_USER.project, dateStr: date, rows});
     el("submitBtn").disabled = false;
     el("submitBtn").textContent = "Submit today's log";
     if (!res.success) {
       el("submitError").innerHTML = `<div class="error">${res.message}</div>`;
       return;
     }
+    const towerSet = [...new Set(rows.flatMap(r => r.towers))];
     el("submitSuccess").classList.remove("hidden");
-    el("submitSuccess").innerHTML = `<div class="success">✓ Logged ${res.rowsWritten} activit${res.rowsWritten===1?'y':'ies'} for Tower ${tower}, ${date}.</div>`;
+    el("submitSuccess").innerHTML = `<div class="success">✓ Logged ${res.rowsWritten} entr${res.rowsWritten===1?'y':'ies'} across Tower ${towerSet.join(", ")} for ${date}.</div>`;
     el("rowsContainer").innerHTML = "";
     ROW_COUNT = 0;
     addRow();
