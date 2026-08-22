@@ -148,6 +148,16 @@ let CURRENT_USER = null;
 let PROJECT_CONFIG = {towers: [], activities: []};
 let ROW_COUNT = 0;
 
+// Labor types that ARE unskilled labor by definition — M/C (male labor) and
+// F/C (female labor). When one of these is selected, the grid only asks for
+// an unskilled headcount; Skilled is auto-set to 0. Matching ignores case
+// and spaces, so "m/c", "F / C" etc. all count. Add more here if needed.
+const UNSKILLED_LABOR_TYPES = ["m/c", "f/c"];
+function isUnskilledType(laborType){
+  const norm = String(laborType || "").toLowerCase().replace(/\s+/g, "");
+  return UNSKILLED_LABOR_TYPES.includes(norm);
+}
+
 const el = (id) => document.getElementById(id);
 
 function todayISO(){
@@ -576,21 +586,41 @@ function renderGrid(id){
       const v = saved[key] || {};
       const labelC = c || "(no contractor selected)";
       const labelLT = lt ? ` · <span class="lt">${lt}</span>` : "";
-      blocks.push(`
-        <div class="combo-row">
-          <div class="combo-label">${labelC}${labelLT}</div>
-          <div class="grp-lbl">Required (per tower)</div>
-          <div class="two-col">
-            <input type="number" min="0" data-key="${key}" data-field="reqSk" placeholder="Skilled" value="${v.reqSk || ""}">
-            <input type="number" min="0" data-key="${key}" data-field="reqUnsk" placeholder="Unskilled" value="${v.reqUnsk || ""}">
+      if (isUnskilledType(lt)) {
+        // M/C and F/C ARE unskilled labor — only ask for the unskilled
+        // headcount; Skilled is auto-recorded as 0 for these lines.
+        blocks.push(`
+          <div class="combo-row">
+            <div class="combo-label">${labelC}${labelLT} <span class="lt" style="font-weight:600;">— counted as Unskilled</span></div>
+            <div class="two-col">
+              <div>
+                <div class="grp-lbl">Required (per tower)</div>
+                <input type="number" min="0" data-key="${key}" data-field="reqUnsk" placeholder="${lt} count" value="${v.reqUnsk || ""}">
+              </div>
+              <div>
+                <div class="grp-lbl">Available (per tower)</div>
+                <input type="number" min="0" data-key="${key}" data-field="availUnsk" placeholder="${lt} count" value="${v.availUnsk || ""}">
+              </div>
+            </div>
           </div>
-          <div class="grp-lbl">Available (per tower)</div>
-          <div class="two-col">
-            <input type="number" min="0" data-key="${key}" data-field="availSk" placeholder="Skilled" value="${v.availSk || ""}">
-            <input type="number" min="0" data-key="${key}" data-field="availUnsk" placeholder="Unskilled" value="${v.availUnsk || ""}">
+        `);
+      } else {
+        blocks.push(`
+          <div class="combo-row">
+            <div class="combo-label">${labelC}${labelLT}</div>
+            <div class="grp-lbl">Required (per tower)</div>
+            <div class="two-col">
+              <input type="number" min="0" data-key="${key}" data-field="reqSk" placeholder="Skilled" value="${v.reqSk || ""}">
+              <input type="number" min="0" data-key="${key}" data-field="reqUnsk" placeholder="Unskilled" value="${v.reqUnsk || ""}">
+            </div>
+            <div class="grp-lbl">Available (per tower)</div>
+            <div class="two-col">
+              <input type="number" min="0" data-key="${key}" data-field="availSk" placeholder="Skilled" value="${v.availSk || ""}">
+              <input type="number" min="0" data-key="${key}" data-field="availUnsk" placeholder="Unskilled" value="${v.availUnsk || ""}">
+            </div>
           </div>
-        </div>
-      `);
+        `);
+      }
     });
   });
   grid.innerHTML = blocks.join('');
@@ -660,11 +690,12 @@ el("submitBtn").addEventListener("click", async () => {
       eff(s.laborTypes).forEach(lt => {
         const v = saved[comboKeyOf(c, lt)] || {};
         const info = contactInfoFor(id, c);
+        const unskilledOnly = isUnskilledType(lt); // M/C, F/C -> skilled auto-0
         entries.push({
           contractor: c, laborType: lt,
           contact: info.contact, siteContactName: info.siteContactName,
-          reqSkilled: v.reqSk || 0, reqUnskilled: v.reqUnsk || 0,
-          availSkilled: v.availSk || 0, availUnskilled: v.availUnsk || 0
+          reqSkilled: unskilledOnly ? 0 : (v.reqSk || 0), reqUnskilled: v.reqUnsk || 0,
+          availSkilled: unskilledOnly ? 0 : (v.availSk || 0), availUnskilled: v.availUnsk || 0
         });
       });
     });
