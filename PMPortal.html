@@ -88,6 +88,17 @@
   .trend-bar-fill{height:100%;background:var(--green);}
   .trend-bar-fill.short{background:var(--red);}
   .trend-nums{width:70px;text-align:right;font-variant-numeric:tabular-nums;}
+
+  /* ---------- Edit Entries ---------- */
+  .edit-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;}
+  .edit-card .edit-title{font-size:13px;font-weight:700;margin-bottom:2px;}
+  .edit-card .edit-sub{font-size:11px;color:var(--ink-dim);margin-bottom:10px;}
+  .edit-card .edit-meta{font-size:11px;color:var(--gold);margin-top:8px;}
+  .edit-card button.save-entry{width:auto;padding:9px 16px;font-size:13px;margin-top:10px;}
+  .edit-card .edit-status{font-size:12px;margin-top:8px;}
+  .edit-card .edit-status.ok{color:var(--green);}
+  .edit-card .edit-status.err{color:var(--red);}
+  .edit-empty{font-size:13px;color:var(--ink-dim);padding:6px 0;}
 </style>
 </head>
 <body>
@@ -116,6 +127,7 @@
     <div style="display:flex; gap:8px; margin-bottom:16px;">
       <button class="secondary" id="tabLogBtn" style="margin:0;flex:1;">Log Today</button>
       <button class="secondary" id="tabProgressBtn" style="margin:0;flex:1;">Progress Report</button>
+      <button class="secondary" id="tabEditBtn" style="margin:0;flex:1;">Edit Entries</button>
     </div>
 
     <div id="logView">
@@ -134,6 +146,15 @@
 
     <div id="progressView" class="hidden">
       <div id="progressContent"></div>
+    </div>
+
+    <div id="editView" class="hidden">
+      <div class="card">
+        <label for="editDateInput">Date to edit</label>
+        <input type="date" id="editDateInput">
+        <button id="loadEditBtn">Load my entries for this date</button>
+      </div>
+      <div id="editContent"></div>
     </div>
   </div>
 </div>
@@ -246,24 +267,39 @@ async function onLoggedIn(){
   }
 }
 
-// ---------- Tab switching: Log Today <-> Progress Report ----------
+// ---------- Tab switching: Log Today <-> Progress Report <-> Edit Entries ----------
 function showLogTab(){
   el("logView").classList.remove("hidden");
   el("progressView").classList.add("hidden");
+  el("editView").classList.add("hidden");
   el("tabLogBtn").classList.add("tab-active");
   el("tabProgressBtn").classList.remove("tab-active");
+  el("tabEditBtn").classList.remove("tab-active");
 }
 
 async function showProgressTab(){
   el("logView").classList.add("hidden");
   el("progressView").classList.remove("hidden");
+  el("editView").classList.add("hidden");
   el("tabLogBtn").classList.remove("tab-active");
   el("tabProgressBtn").classList.add("tab-active");
+  el("tabEditBtn").classList.remove("tab-active");
   await loadProgressReport();
+}
+
+function showEditTab(){
+  el("logView").classList.add("hidden");
+  el("progressView").classList.add("hidden");
+  el("editView").classList.remove("hidden");
+  el("tabLogBtn").classList.remove("tab-active");
+  el("tabProgressBtn").classList.remove("tab-active");
+  el("tabEditBtn").classList.add("tab-active");
+  if (!el("editDateInput").value) el("editDateInput").value = todayISO();
 }
 
 el("tabLogBtn").addEventListener("click", showLogTab);
 el("tabProgressBtn").addEventListener("click", showProgressTab);
+el("tabEditBtn").addEventListener("click", showEditTab);
 
 async function loadProgressReport(){
   const container = el("progressContent");
@@ -663,6 +699,112 @@ function contactInfoFor(id, contractor){
 }
 
 el("addRowBtn").addEventListener("click", addRow);
+
+// ---------- Edit Entries ----------
+// PMs can pull up their OWN already-submitted entries for a past date and
+// correct them. Every change is written to the Edit Audit Log on the
+// backend (who changed what field, old value -> new value, when) before
+// the cell is overwritten — nothing is silently rewritten.
+let EDIT_WINDOW_DAYS = 14;
+
+el("loadEditBtn").addEventListener("click", loadEditEntries);
+
+async function loadEditEntries(){
+  const date = el("editDateInput").value;
+  const container = el("editContent");
+  if (!date) { container.innerHTML = '<div class="error">Pick a date first.</div>'; return; }
+  container.innerHTML = '<div class="card"><span class="spinner" style="border-top-color:var(--red);border-color:rgba(0,0,0,0.1);"></span>Loading…</div>';
+  try {
+    const res = await callApi("getMyEntries", {pmName: CURRENT_USER.name, project: CURRENT_USER.project, dateStr: date});
+    if (res.editWindowDays) EDIT_WINDOW_DAYS = res.editWindowDays;
+    const entries = res.entries || [];
+    if (!entries.length) {
+      container.innerHTML = `<div class="card"><p class="edit-empty">No entries logged by you for ${date}.</p></div>`;
+      return;
+    }
+    container.innerHTML = entries.map(renderEditCard).join('');
+    entries.forEach(en => {
+      el("saveEdit-" + en.entryId).addEventListener("click", () => saveEditedEntry(en.entryId));
+    });
+  } catch (err) {
+    container.innerHTML = `<div class="card"><div class="error">Couldn't load entries: ${err.message}</div></div>`;
+  }
+}
+
+function renderEditCard(en){
+  const unskilledOnly = isUnskilledType(en.laborType);
+  const editedNote = en.lastEditedBy
+    ? `<div class="edit-meta">Last edited by ${en.lastEditedBy} · ${en.lastEditedAt}</div>` : "";
+  return `
+    <div class="edit-card" id="editCard-${en.entryId}">
+      <div class="edit-title">Tower ${en.tower} · ${en.activity}${en.laborType ? " · " + en.laborType : ""}</div>
+      <div class="edit-sub">${en.contractor || "(no contractor)"}</div>
+      ${unskilledOnly ? `
+        <div class="two-col">
+          <div>
+            <label style="margin-top:0;">Required</label>
+            <input type="number" min="0" id="reqUnsk-${en.entryId}" value="${en.reqUnskilled}">
+          </div>
+          <div>
+            <label style="margin-top:0;">Available</label>
+            <input type="number" min="0" id="availUnsk-${en.entryId}" value="${en.availUnskilled}">
+          </div>
+        </div>
+        <input type="hidden" id="reqSk-${en.entryId}" value="0">
+        <input type="hidden" id="availSk-${en.entryId}" value="0">
+      ` : `
+        <label style="margin-top:0;">Required</label>
+        <div class="two-col">
+          <input type="number" min="0" id="reqSk-${en.entryId}" placeholder="Skilled" value="${en.reqSkilled}">
+          <input type="number" min="0" id="reqUnsk-${en.entryId}" placeholder="Unskilled" value="${en.reqUnskilled}">
+        </div>
+        <label>Available</label>
+        <div class="two-col">
+          <input type="number" min="0" id="availSk-${en.entryId}" placeholder="Skilled" value="${en.availSkilled}">
+          <input type="number" min="0" id="availUnsk-${en.entryId}" placeholder="Unskilled" value="${en.availUnskilled}">
+        </div>
+      `}
+      <button class="save-entry" id="saveEdit-${en.entryId}">Save changes</button>
+      <div class="edit-status" id="editStatus-${en.entryId}"></div>
+      ${editedNote}
+    </div>
+  `;
+}
+
+async function saveEditedEntry(entryId){
+  const btn = el("saveEdit-" + entryId);
+  const status = el("editStatus-" + entryId);
+  status.className = "edit-status";
+  status.textContent = "";
+  btn.disabled = true;
+  const original = btn.textContent;
+  btn.innerHTML = '<span class="spinner" style="border-top-color:var(--ink);border-color:rgba(0,0,0,0.15);"></span>Saving…';
+
+  const changes = {
+    reqSkilled: Number(el("reqSk-" + entryId).value) || 0,
+    reqUnskilled: Number(el("reqUnsk-" + entryId).value) || 0,
+    availSkilled: Number(el("availSk-" + entryId).value) || 0,
+    availUnskilled: Number(el("availUnsk-" + entryId).value) || 0
+  };
+
+  try {
+    const res = await callApi("updateEntry", {pmName: CURRENT_USER.name, entryId, changes});
+    btn.disabled = false;
+    btn.textContent = original;
+    if (!res.changedFields || !res.changedFields.length) {
+      status.className = "edit-status";
+      status.textContent = "No changes to save.";
+      return;
+    }
+    status.className = "edit-status ok";
+    status.textContent = "✓ Updated (" + res.changedFields.join(", ") + ") — logged in the audit trail.";
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = original;
+    status.className = "edit-status err";
+    status.textContent = err.message;
+  }
+}
 
 // ---------- Submit ----------
 el("submitBtn").addEventListener("click", async () => {
