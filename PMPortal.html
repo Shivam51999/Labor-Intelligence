@@ -759,26 +759,12 @@ function renderEditCard(en){
     <div class="edit-card" id="editCard-${en.entryId}">
       <div class="edit-title">Tower ${en.tower} · ${en.activity}${en.laborType ? " · " + en.laborType : ""}</div>
       <div class="edit-sub">${en.contractor || "(no contractor)"}</div>
+      <div class="required-note">Required (that day): ${unskilledOnly ? `<b>${en.reqUnskilled}</b> unskilled` : `<b>${en.reqSkilled}</b> skilled / <b>${en.reqUnskilled}</b> unskilled`} — set via Weekly Requirement, not editable here.</div>
       ${unskilledOnly ? `
-        <div class="two-col">
-          <div>
-            <label style="margin-top:0;">Required</label>
-            <input type="number" min="0" id="reqUnsk-${en.entryId}" value="${en.reqUnskilled}">
-          </div>
-          <div>
-            <label style="margin-top:0;">Available</label>
-            <input type="number" min="0" id="availUnsk-${en.entryId}" value="${en.availUnskilled}">
-          </div>
-        </div>
-        <input type="hidden" id="reqSk-${en.entryId}" value="0">
-        <input type="hidden" id="availSk-${en.entryId}" value="0">
+        <label style="margin-top:0;">Available</label>
+        <input type="number" min="0" id="availUnsk-${en.entryId}" value="${en.availUnskilled}">
       ` : `
-        <label style="margin-top:0;">Required</label>
-        <div class="two-col">
-          <input type="number" min="0" id="reqSk-${en.entryId}" placeholder="Skilled" value="${en.reqSkilled}">
-          <input type="number" min="0" id="reqUnsk-${en.entryId}" placeholder="Unskilled" value="${en.reqUnskilled}">
-        </div>
-        <label>Available</label>
+        <label style="margin-top:0;">Available</label>
         <div class="two-col">
           <input type="number" min="0" id="availSk-${en.entryId}" placeholder="Skilled" value="${en.availSkilled}">
           <input type="number" min="0" id="availUnsk-${en.entryId}" placeholder="Unskilled" value="${en.availUnskilled}">
@@ -801,9 +787,7 @@ async function saveEditedEntry(entryId){
   btn.innerHTML = '<span class="spinner" style="border-top-color:var(--ink);border-color:rgba(0,0,0,0.15);"></span>Saving…';
 
   const changes = {
-    reqSkilled: Number(el("reqSk-" + entryId).value) || 0,
-    reqUnskilled: Number(el("reqUnsk-" + entryId).value) || 0,
-    availSkilled: Number(el("availSk-" + entryId).value) || 0,
+    availSkilled: el("availSk-" + entryId) ? (Number(el("availSk-" + entryId).value) || 0) : 0,
     availUnskilled: Number(el("availUnsk-" + entryId).value) || 0
   };
 
