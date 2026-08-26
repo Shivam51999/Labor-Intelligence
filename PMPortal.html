@@ -99,14 +99,26 @@
   .edit-card .edit-status.ok{color:var(--green);}
   .edit-card .edit-status.err{color:var(--red);}
   .edit-empty{font-size:13px;color:var(--ink-dim);padding:6px 0;}
+
+  .tab-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;}
+  .tab-grid button{padding:10px 6px;font-size:13px;}
+
+  /* ---------- Daily Log (simplified) ---------- */
+  .daily-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;}
+  .daily-card .daily-title{font-size:13px;font-weight:700;margin-bottom:2px;}
+  .daily-card .daily-sub{font-size:11px;color:var(--ink-dim);margin-bottom:10px;}
+  .daily-card .required-note{font-size:12px;color:var(--ink-dim);background:#f5f5f6;border-radius:8px;padding:8px 10px;margin-bottom:10px;}
+  .daily-card .required-note b{color:var(--ink);}
+  .daily-group-title{font-size:13px;font-weight:700;color:var(--ink-dim);text-transform:uppercase;letter-spacing:0.03em;margin:18px 0 8px;}
+  .daily-group-title:first-child{margin-top:0;}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <p><span class="dot"></span>MANGALAM LANDMARKS</p>
-    <h1>Daily Labour Log</h1>
-    <p>Fill this in once a day — tag each entry to all the towers it covers.</p>
+    <h1>Labour Portal</h1>
+    <p>Set your requirement once a week. Log what showed up, every day.</p>
   </header>
 
   <div class="card" id="loginCard">
@@ -124,24 +136,33 @@
       <button class="secondary" id="logoutBtn">Log out</button>
     </div>
 
-    <div style="display:flex; gap:8px; margin-bottom:16px;">
-      <button class="secondary" id="tabLogBtn" style="margin:0;flex:1;">Log Today</button>
-      <button class="secondary" id="tabProgressBtn" style="margin:0;flex:1;">Progress Report</button>
-      <button class="secondary" id="tabEditBtn" style="margin:0;flex:1;">Edit Entries</button>
+    <div class="tab-grid">
+      <button class="secondary" id="tabDailyBtn" style="margin:0;">Daily Log</button>
+      <button class="secondary" id="tabReqBtn" style="margin:0;">Weekly Requirement</button>
+      <button class="secondary" id="tabProgressBtn" style="margin:0;">Progress Report</button>
+      <button class="secondary" id="tabEditBtn" style="margin:0;">Edit Entries</button>
     </div>
 
-    <div id="logView">
+    <div id="dailyView">
       <div class="card">
-        <label for="dateInput">Date</label>
-        <input type="date" id="dateInput">
+        <label for="dailyDateInput">Date</label>
+        <input type="date" id="dailyDateInput">
+        <div class="hint" style="margin-top:8px;">Shows every Tower × Activity × Contractor × Labor Type combo you've set a requirement for this week — just fill in who actually showed up today.</div>
+      </div>
+      <div id="dailyContent"></div>
+    </div>
+
+    <div id="reqView" class="hidden">
+      <div class="card">
+        <p style="font-size:13px;color:var(--ink-dim);margin:0;">Set what you need for <b>this week</b> — Towers, Activity, Labor Type, Contractor, and the Required headcount. Re-saving the same combination later this week updates it instead of duplicating it.</p>
       </div>
 
       <div id="rowsContainer"></div>
 
       <button class="secondary" id="addRowBtn">+ Add activity</button>
-      <button id="submitBtn">Submit today's log</button>
-      <div id="submitError"></div>
-      <div id="submitSuccess" class="hidden"></div>
+      <button id="submitReqBtn">Save this week's requirement</button>
+      <div id="reqError"></div>
+      <div id="reqSuccess" class="hidden"></div>
     </div>
 
     <div id="progressView" class="hidden">
@@ -254,52 +275,64 @@ async function onLoggedIn(){
   el("mainForm").classList.remove("hidden");
   el("whoName").textContent = CURRENT_USER.name;
   el("whoProject").textContent = CURRENT_USER.project;
-  el("dateInput").value = todayISO();
+  el("dailyDateInput").value = todayISO();
   el("rowsContainer").innerHTML = "";
   ROW_COUNT = 0;
-  showLogTab();
+  showDailyTab();
 
   try {
     PROJECT_CONFIG = await callApi("getProjectConfig", {project: CURRENT_USER.project});
-    addRow();
   } catch (err) {
-    el("submitError").innerHTML = `<div class="error">Couldn't load project config: ${err.message}</div>`;
+    el("dailyContent").innerHTML = `<div class="error">Couldn't load project config: ${err.message}</div>`;
   }
 }
 
-// ---------- Tab switching: Log Today <-> Progress Report <-> Edit Entries ----------
-function showLogTab(){
-  el("logView").classList.remove("hidden");
+// ---------- Tab switching: Daily Log <-> Weekly Requirement <-> Progress Report <-> Edit Entries ----------
+function hideAllViews(){
+  el("dailyView").classList.add("hidden");
+  el("reqView").classList.add("hidden");
   el("progressView").classList.add("hidden");
   el("editView").classList.add("hidden");
-  el("tabLogBtn").classList.add("tab-active");
+  el("tabDailyBtn").classList.remove("tab-active");
+  el("tabReqBtn").classList.remove("tab-active");
   el("tabProgressBtn").classList.remove("tab-active");
   el("tabEditBtn").classList.remove("tab-active");
 }
 
+function showDailyTab(){
+  hideAllViews();
+  el("dailyView").classList.remove("hidden");
+  el("tabDailyBtn").classList.add("tab-active");
+  if (!el("dailyDateInput").value) el("dailyDateInput").value = todayISO();
+  loadDailyCombos();
+}
+
+function showReqTab(){
+  hideAllViews();
+  el("reqView").classList.remove("hidden");
+  el("tabReqBtn").classList.add("tab-active");
+  if (!ROW_COUNT) addRow();
+}
+
 async function showProgressTab(){
-  el("logView").classList.add("hidden");
+  hideAllViews();
   el("progressView").classList.remove("hidden");
-  el("editView").classList.add("hidden");
-  el("tabLogBtn").classList.remove("tab-active");
   el("tabProgressBtn").classList.add("tab-active");
-  el("tabEditBtn").classList.remove("tab-active");
   await loadProgressReport();
 }
 
 function showEditTab(){
-  el("logView").classList.add("hidden");
-  el("progressView").classList.add("hidden");
+  hideAllViews();
   el("editView").classList.remove("hidden");
-  el("tabLogBtn").classList.remove("tab-active");
-  el("tabProgressBtn").classList.remove("tab-active");
   el("tabEditBtn").classList.add("tab-active");
   if (!el("editDateInput").value) el("editDateInput").value = todayISO();
 }
 
-el("tabLogBtn").addEventListener("click", showLogTab);
+el("tabDailyBtn").addEventListener("click", showDailyTab);
+el("tabReqBtn").addEventListener("click", showReqTab);
 el("tabProgressBtn").addEventListener("click", showProgressTab);
 el("tabEditBtn").addEventListener("click", showEditTab);
+el("dailyDateInput").addEventListener("change", loadDailyCombos);
 
 async function loadProgressReport(){
   const container = el("progressContent");
@@ -397,7 +430,7 @@ function addRow(){
       <button type="button" class="secondary" onclick="addCustomContractor(${id})">Add</button>
     </div>
     <div class="hint" id="reqNote-${id}"></div>
-    <label>Labour Count <span class="hint" style="display:inline;">(per tower, per line)</span></label>
+    <label>Required Headcount <span class="hint" style="display:inline;">(per tower, per week)</span></label>
     <div id="grid-${id}"><span class="chip-empty">Pick Activity and Contractor(s) to enter counts.</span></div>
   `;
   el("rowsContainer").appendChild(div);
@@ -628,31 +661,18 @@ function renderGrid(id){
         blocks.push(`
           <div class="combo-row">
             <div class="combo-label">${labelC}${labelLT} <span class="lt" style="font-weight:600;">— counted as Unskilled</span></div>
-            <div class="two-col">
-              <div>
-                <div class="grp-lbl">Required (per tower)</div>
-                <input type="number" min="0" data-key="${key}" data-field="reqUnsk" placeholder="${lt} count" value="${v.reqUnsk || ""}">
-              </div>
-              <div>
-                <div class="grp-lbl">Available (per tower)</div>
-                <input type="number" min="0" data-key="${key}" data-field="availUnsk" placeholder="${lt} count" value="${v.availUnsk || ""}">
-              </div>
-            </div>
+            <div class="grp-lbl">Required (per tower, per week)</div>
+            <input type="number" min="0" data-key="${key}" data-field="reqUnsk" placeholder="${lt} count" value="${v.reqUnsk || ""}">
           </div>
         `);
       } else {
         blocks.push(`
           <div class="combo-row">
             <div class="combo-label">${labelC}${labelLT}</div>
-            <div class="grp-lbl">Required (per tower)</div>
+            <div class="grp-lbl">Required (per tower, per week)</div>
             <div class="two-col">
               <input type="number" min="0" data-key="${key}" data-field="reqSk" placeholder="Skilled" value="${v.reqSk || ""}">
               <input type="number" min="0" data-key="${key}" data-field="reqUnsk" placeholder="Unskilled" value="${v.reqUnsk || ""}">
-            </div>
-            <div class="grp-lbl">Available (per tower)</div>
-            <div class="two-col">
-              <input type="number" min="0" data-key="${key}" data-field="availSk" placeholder="Skilled" value="${v.availSk || ""}">
-              <input type="number" min="0" data-key="${key}" data-field="availUnsk" placeholder="Unskilled" value="${v.availUnsk || ""}">
             </div>
           </div>
         `);
@@ -806,14 +826,13 @@ async function saveEditedEntry(entryId){
   }
 }
 
-// ---------- Submit ----------
-el("submitBtn").addEventListener("click", async () => {
-  const date = el("dateInput").value;
-  el("submitError").innerHTML = "";
-  el("submitSuccess").classList.add("hidden");
+// ---------- Submit Weekly Requirement ----------
+el("submitReqBtn").addEventListener("click", async () => {
+  el("reqError").innerHTML = "";
+  el("reqSuccess").classList.add("hidden");
 
   const rowDivs = document.querySelectorAll(".row-card");
-  if (!rowDivs.length) { el("submitError").innerHTML = '<div class="error">Add at least one activity.</div>'; return; }
+  if (!rowDivs.length) { el("reqError").innerHTML = '<div class="error">Add at least one activity.</div>'; return; }
 
   const rows = [];
   const seen = new Set(); // final safety net against Tower+Activity+LaborType+Contractor duplicates
@@ -822,7 +841,7 @@ el("submitBtn").addEventListener("click", async () => {
     const s = getRowState(id);
     if (!s.activity) continue;
     if (!s.towers.length) {
-      el("submitError").innerHTML = `<div class="error">Activity ${id} (${s.activity}): select at least one tower.</div>`;
+      el("reqError").innerHTML = `<div class="error">Activity ${id} (${s.activity}): select at least one tower.</div>`;
       return;
     }
 
@@ -836,8 +855,7 @@ el("submitBtn").addEventListener("click", async () => {
         entries.push({
           contractor: c, laborType: lt,
           contact: info.contact, siteContactName: info.siteContactName,
-          reqSkilled: unskilledOnly ? 0 : (v.reqSk || 0), reqUnskilled: v.reqUnsk || 0,
-          availSkilled: unskilledOnly ? 0 : (v.availSk || 0), availUnskilled: v.availUnsk || 0
+          reqSkilled: unskilledOnly ? 0 : (v.reqSk || 0), reqUnskilled: v.reqUnsk || 0
         });
       });
     });
@@ -846,7 +864,7 @@ el("submitBtn").addEventListener("click", async () => {
       for (const e of entries) {
         const dupKey = [t, s.activity, e.laborType, e.contractor].join("|").toLowerCase();
         if (seen.has(dupKey)) {
-          el("submitError").innerHTML = `<div class="error">Duplicate: Tower ${t} · ${s.activity}${e.laborType ? " · " + e.laborType : ""}${e.contractor ? " · " + e.contractor : ""} appears in more than one card. Remove one before submitting.</div>`;
+          el("reqError").innerHTML = `<div class="error">Duplicate: Tower ${t} · ${s.activity}${e.laborType ? " · " + e.laborType : ""}${e.contractor ? " · " + e.contractor : ""} appears in more than one card. Remove one before saving.</div>`;
           return;
         }
         seen.add(dupKey);
@@ -856,31 +874,135 @@ el("submitBtn").addEventListener("click", async () => {
     rows.push({towers: s.towers, activity: s.activity, entries});
   }
 
-  if (!rows.length) { el("submitError").innerHTML = '<div class="error">Fill in at least one activity fully.</div>'; return; }
+  if (!rows.length) { el("reqError").innerHTML = '<div class="error">Fill in at least one activity fully.</div>'; return; }
 
-  el("submitBtn").disabled = true;
-  el("submitBtn").innerHTML = '<span class="spinner"></span>Submitting…';
+  el("submitReqBtn").disabled = true;
+  el("submitReqBtn").innerHTML = '<span class="spinner"></span>Saving…';
 
   try {
-    const res = await callApi("submitLog", {pmName: CURRENT_USER.name, project: CURRENT_USER.project, dateStr: date, rows});
-    el("submitBtn").disabled = false;
-    el("submitBtn").textContent = "Submit today's log";
+    const res = await callApi("submitWeeklyRequirement", {pmName: CURRENT_USER.name, project: CURRENT_USER.project, dateStr: todayISO(), rows});
+    el("submitReqBtn").disabled = false;
+    el("submitReqBtn").textContent = "Save this week's requirement";
     if (!res.success) {
-      el("submitError").innerHTML = `<div class="error">${res.message}</div>`;
+      el("reqError").innerHTML = `<div class="error">${res.message}</div>`;
       return;
     }
     const towerSet = [...new Set(rows.flatMap(r => r.towers))];
-    el("submitSuccess").classList.remove("hidden");
-    el("submitSuccess").innerHTML = `<div class="success">✓ Logged ${res.rowsWritten} entr${res.rowsWritten===1?'y':'ies'} across Tower ${towerSet.join(", ")} for ${date}.</div>`;
+    el("reqSuccess").classList.remove("hidden");
+    el("reqSuccess").innerHTML = `<div class="success">✓ Saved ${res.linesWritten} requirement line${res.linesWritten===1?'':'s'} across Tower ${towerSet.join(", ")} for this week.</div>`;
     el("rowsContainer").innerHTML = "";
     ROW_COUNT = 0;
     addRow();
   } catch (err) {
-    el("submitBtn").disabled = false;
-    el("submitBtn").textContent = "Submit today's log";
-    el("submitError").innerHTML = `<div class="error">${err.message}</div>`;
+    el("submitReqBtn").disabled = false;
+    el("submitReqBtn").textContent = "Save this week's requirement";
+    el("reqError").innerHTML = `<div class="error">${err.message}</div>`;
   }
 });
+
+// ---------- Daily Log (simplified) ----------
+// Auto-loads every Tower × Activity × Contractor × Labor Type combo that
+// has a Weekly Requirement set for the week containing the chosen date.
+// The PM only fills in Available — Required is shown read-only, pulled
+// straight from what was set on the Weekly Requirement tab.
+let DAILY_COMBOS = [];
+
+async function loadDailyCombos(){
+  const date = el("dailyDateInput").value;
+  const container = el("dailyContent");
+  if (!date) return;
+  container.innerHTML = '<div class="card"><span class="spinner" style="border-top-color:var(--red);border-color:rgba(0,0,0,0.1);"></span>Loading…</div>';
+  try {
+    const res = await callApi("getWeeklyRequirementCombos", {project: CURRENT_USER.project, dateStr: date});
+    DAILY_COMBOS = res.combos || [];
+    if (!DAILY_COMBOS.length) {
+      container.innerHTML = `<div class="card"><p class="edit-empty">No requirement set for this week yet. Go to <b>Weekly Requirement</b> first and set what you need — then come back here to log who showed up.</p></div>`;
+      return;
+    }
+
+    // Group by Tower + Activity for readability.
+    const groups = {};
+    DAILY_COMBOS.forEach((c, i) => {
+      const gkey = "Tower " + c.tower + " · " + c.activity;
+      if (!groups[gkey]) groups[gkey] = [];
+      groups[gkey].push({...c, _idx: i});
+    });
+
+    container.innerHTML = Object.entries(groups).map(([gkey, combos]) => `
+      <div class="daily-group-title">${gkey}</div>
+      ${combos.map(renderDailyCard).join('')}
+    `).join('') + `
+      <button id="submitDailyBtn">Submit today's log</button>
+      <div id="dailySubmitError"></div>
+      <div id="dailySubmitSuccess" class="hidden"></div>
+    `;
+    el("submitDailyBtn").addEventListener("click", submitDailyLog);
+  } catch (err) {
+    container.innerHTML = `<div class="card"><div class="error">Couldn't load this week's requirement: ${err.message}</div></div>`;
+  }
+}
+
+function renderDailyCard(c){
+  const unskilledOnly = isUnskilledType(c.laborType);
+  return `
+    <div class="daily-card">
+      <div class="daily-title">${c.contractor || "(no contractor)"}${c.laborType ? " · " + c.laborType : ""}</div>
+      <div class="required-note">Required: ${unskilledOnly ? `<b>${c.reqUnskilled}</b> unskilled` : `<b>${c.reqSkilled}</b> skilled / <b>${c.reqUnskilled}</b> unskilled`}</div>
+      ${unskilledOnly ? `
+        <label style="margin-top:0;">Available today</label>
+        <input type="number" min="0" data-daily="${c._idx}" data-field="availUnsk" placeholder="Unskilled count">
+        <input type="hidden" data-daily="${c._idx}" data-field="availSk" value="0">
+      ` : `
+        <label style="margin-top:0;">Available today</label>
+        <div class="two-col">
+          <input type="number" min="0" data-daily="${c._idx}" data-field="availSk" placeholder="Skilled">
+          <input type="number" min="0" data-daily="${c._idx}" data-field="availUnsk" placeholder="Unskilled">
+        </div>
+      `}
+    </div>
+  `;
+}
+
+async function submitDailyLog(){
+  const date = el("dailyDateInput").value;
+  el("dailySubmitError").innerHTML = "";
+  el("dailySubmitSuccess").classList.add("hidden");
+
+  const rows = DAILY_COMBOS.map((c, i) => {
+    const skInp = document.querySelector(`[data-daily="${i}"][data-field="availSk"]`);
+    const unskInp = document.querySelector(`[data-daily="${i}"][data-field="availUnsk"]`);
+    return {
+      towers: [c.tower], activity: c.activity,
+      entries: [{
+        contractor: c.contractor, laborType: c.laborType,
+        contact: c.contact, siteContactName: c.siteContactName,
+        reqSkilled: c.reqSkilled, reqUnskilled: c.reqUnskilled,
+        availSkilled: skInp ? (Number(skInp.value) || 0) : 0,
+        availUnskilled: unskInp ? (Number(unskInp.value) || 0) : 0
+      }]
+    };
+  });
+
+  const btn = el("submitDailyBtn");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Submitting…';
+
+  try {
+    const res = await callApi("submitLog", {pmName: CURRENT_USER.name, project: CURRENT_USER.project, dateStr: date, rows});
+    btn.disabled = false;
+    btn.textContent = "Submit today's log";
+    if (!res.success) {
+      el("dailySubmitError").innerHTML = `<div class="error">${res.message}</div>`;
+      return;
+    }
+    el("dailySubmitSuccess").classList.remove("hidden");
+    el("dailySubmitSuccess").innerHTML = `<div class="success">✓ Logged ${res.rowsWritten} entr${res.rowsWritten===1?'y':'ies'} for ${date}.</div>`;
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = "Submit today's log";
+    el("dailySubmitError").innerHTML = `<div class="error">${err.message}</div>`;
+  }
+}
 </script>
 </body>
 </html>
