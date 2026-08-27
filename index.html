@@ -118,12 +118,6 @@
   .scope-chip{font-family:var(--font-mono);font-size:11px;color:var(--red);background:var(--red-soft);border-radius:100px;padding:5px 12px;font-weight:600;display:none;cursor:pointer;}
   .scope-chip.on{display:inline-block;}
 
-  /* ---------- Project focus banner ---------- */
-  .focus-banner{display:none;align-items:center;gap:10px;border:1.5px solid var(--red);border-radius:12px;background:var(--red-soft);padding:12px 18px;margin:18px 0 6px;font-size:13px;color:var(--red-deep);}
-  .focus-banner.on{display:flex;}
-  .focus-banner b{font-family:var(--font-head);}
-  .focus-banner .fb-clear{margin-left:auto;font-family:var(--font-mono);font-size:11px;color:var(--red);cursor:pointer;text-decoration:underline;white-space:nowrap;}
-
   /* ---------- Section header ---------- */
   .section-head{display:flex;align-items:baseline;justify-content:space-between;margin:44px 0 6px;scroll-margin-top:120px;}
   .section-head .tag{display:flex;align-items:center;gap:12px;font-family:var(--font-head);font-size:19px;font-weight:800;color:var(--ink);letter-spacing:-0.01em;}
@@ -315,11 +309,6 @@
         <option value="30">30 days</option>
       </select>
       <span class="scope-chip" id="scopeChip" onclick="clearScope()" title="Click to go back to org-wide view">✕ clear focus</span>
-    </div>
-
-    <div class="focus-banner" id="focusBanner">
-      <span>📌 Focused on <b id="focusBannerName"></b> — project-specific sections are shown first below.</span>
-      <span class="fb-clear" onclick="clearScope()">✕ clear focus, show full portfolio</span>
     </div>
 
     <div id="content">
@@ -910,23 +899,19 @@ function sparklineSVG(values, color){
 }
 
 /* =============================== LAYOUT =============================== */
-function secHealth(){
+function buildLayout(){
   return `
     <div class="section-head" id="sec-health"><div class="tag"><span class="no">01</span>Portfolio Health</div><div class="synced">Click any project card to focus the whole dashboard</div></div>
     <p class="section-sub">One score per project — fulfilment, momentum, consistency, and reporting discipline rolled together. Red cards are where your morning starts.</p>
     <div class="health-layout">
       <div class="health-card" id="healthCard"></div>
       <div class="proj-grid" id="projGrid"></div>
-    </div>`;
-}
-function secHeatmap(){
-  return `
+    </div>
+
     <div class="section-head"><div class="tag"><span class="no">01b</span>14-Day Fulfilment Heatmap</div><div class="synced">Project × day · hover any cell</div></div>
     <p class="section-sub">Spot patterns text can't show — a project going from green to amber to red is drifting; scattered grey means sites aren't logging daily.</p>
-    <div class="heatmap-wrap" id="heatmapWrap"></div>`;
-}
-function secLabour(){
-  return `
+    <div class="heatmap-wrap" id="heatmapWrap"></div>
+
     <div class="section-head" id="sec-labour"><div class="tag"><span class="no">02</span>Labour Position — Today</div><div class="synced" id="labourSynced"></div></div>
     <div class="stat-grid" id="statGrid"></div>
     <div class="chart-grid" style="margin-top:16px;">
@@ -945,10 +930,8 @@ function secLabour(){
         <p class="desc" id="donutDesc">Where today's gap is concentrated.</p>
         <div class="chart-box"><canvas id="donutChart"></canvas></div>
       </div>
-    </div>`;
-}
-function secCategory(){
-  return `
+    </div>
+
     <div class="section-head" id="sec-category"><div class="tag"><span class="no">03</span>Labour Categories</div><div class="synced">By Labor Type · M/C &amp; F/C auto-classified Unskilled</div></div>
     <p class="section-sub">Which craft is actually missing — a shortage of Masons stalls RCC, a shortage of M/C stalls everything behind it. Prioritise recruitment and reallocation by category, not just headcount.</p>
     <div class="chart-grid even">
@@ -963,26 +946,20 @@ function secCategory(){
         <div class="chart-box"><canvas id="skillChart"></canvas></div>
       </div>
     </div>
-    <div style="margin-top:16px;" id="catTable"></div>`;
-}
-function secPredict(){
-  return `
+    <div style="margin-top:16px;" id="catTable"></div>
+
     <div class="section-head" id="sec-predict"><div class="tag"><span class="no">04</span>Predictive Outlook</div><div class="synced" id="predictSynced"></div></div>
     <p class="section-sub">Linear trend on the last 14 logged days. "Days to critical" is when a project's shortage is projected to cross 30% of requirement if nothing changes.</p>
-    <div class="predict-grid" id="predictGrid"></div>`;
-}
-function secProjects(){
-  return `
+    <div class="predict-grid" id="predictGrid"></div>
+
     <div class="section-head" id="sec-projects"><div class="tag"><span class="no">05</span>Projects &amp; Towers</div><div class="synced">Click a project row to focus · click a tower row for activity detail</div></div>
     <div class="highlight-box">
       <div class="highlight-title">⚠ Call these projects first</div>
       <div id="topAttentionTable"></div>
     </div>
     <div id="projectSummaryTable"></div>
-    <div id="towerSection"></div>`;
-}
-function secContractors(){
-  return `
+    <div id="towerSection"></div>
+
     <div class="section-head" id="sec-contractors"><div class="tag"><span class="no">06</span>Contractor Performance</div><div class="synced">Watchlist today · ranking over 30 days, org-wide</div></div>
     <div style="display:flex; gap:8px; margin-bottom:14px;">
       <button class="tab-btn active" id="contractorTabWatchBtn" onclick="showContractorTab('watch')">⚠ Needs Attention</button>
@@ -998,33 +975,12 @@ function secContractors(){
     <div id="contractorTopView" class="hidden">
       <p class="section-sub">Ranked by a 30-day composite: 70% fulfilment, 20% consistency (days ≥90%), 10% trend. Use this at renewal and allocation time.</p>
       <div id="contractorTopTable"></div>
-    </div>`;
-}
-function secChallenges(){
-  return `
+    </div>
+
     <div class="section-head" id="sec-challenges"><div class="tag"><span class="no">07</span>Site Challenges</div><div class="synced">Auto-detected from the log</div></div>
     <p class="section-sub">Problems that don't show in a single day's snapshot: sites stuck short for days, sites gone quiet, and activities that are chronically under-manned.</p>
-    <div class="challenge-grid" id="challengeGrid"></div>`;
-}
-
-/**
- * Section order depends on whether a project is focused. Sections 02
- * (Labour Position), 03 (Categories), 04 (Predictive), and 05 (Projects &
- * Towers, which carries the Tower-level breakdown) already fully respect
- * the scope filter internally — so when a project IS focused, we simply
- * render those project-specific sections first and push the org-wide
- * Portfolio Health grid + heatmap further down, instead of changing what
- * any individual section computes.
- */
-function buildLayout(scope){
-  const sections = {
-    health: secHealth(), heatmap: secHeatmap(), labour: secLabour(), category: secCategory(),
-    predict: secPredict(), projects: secProjects(), contractors: secContractors(), challenges: secChallenges()
-  };
-  const order = (scope === "__all__")
-    ? ['health','heatmap','labour','category','predict','projects','contractors','challenges']
-    : ['projects','labour','category','predict','health','heatmap','contractors','challenges'];
-  return order.map(k => sections[k]).join('');
+    <div class="challenge-grid" id="challengeGrid"></div>
+  `;
 }
 
 /* =============================== RENDER =============================== */
@@ -1035,18 +991,11 @@ function render(){
   const horizon = parseInt(el('horizonFilter').value, 10);
   const scoped = scope === "__all__" ? RAW : RAW.filter(r => r.project === scope);
   const chip = el('scopeChip');
-  const banner = el('focusBanner');
-  if(scope === "__all__"){
-    chip.classList.remove('on');
-    banner.classList.remove('on');
-  } else {
-    chip.classList.add('on'); chip.textContent = "✕ focused: " + scope;
-    banner.classList.add('on');
-    el('focusBannerName').textContent = scope;
-  }
+  if(scope === "__all__"){ chip.classList.remove('on'); }
+  else { chip.classList.add('on'); chip.textContent = "✕ focused: " + scope; }
 
-  el('content').innerHTML = buildLayout(scope);
-  renderHeroKPIs(RAW); // hero strip is always org-wide, regardless of project focus below
+  el('content').innerHTML = buildLayout();
+  renderHeroKPIs(scoped);
   renderBrief(horizon);
   renderHealthGauge(scoped, scope);
   renderProjectGrid();
@@ -1182,17 +1131,13 @@ function renderProjectGrid(){
   const rows = computeProjectSummary(); // sorted worst-first
   el('projGrid').innerHTML = rows.map(p => {
     const color = healthColor(p.score);
-    const required = p.required || 0;
-    const available = p.available || 0;
-    const shortage = p.shortage || 0;
-    const pct = p.pct || 0;
     return `
       <div class="proj-card" style="--accent:${color}" onclick="filterToProject('${p.project}')" title="Click to focus dashboard on ${p.project}">
         <div class="p-name">${p.project}</div>
         <div class="p-score">${p.score}</div>
-        <div class="p-row"><span>Required</span><span class="v">${required.toLocaleString()}</span></div>
-        <div class="p-row"><span>Available</span><span class="v">${available.toLocaleString()}</span></div>
-        <div class="p-row"><span>Shortage</span><span class="v" style="color:${shortage>0?'var(--red)':'var(--green)'}">${shortage.toLocaleString()} (${(pct*100).toFixed(0)}%)</span></div>
+        <div class="p-row"><span>Required</span><span class="v">${p.required.toLocaleString()}</span></div>
+        <div class="p-row"><span>Available</span><span class="v">${p.available.toLocaleString()}</span></div>
+        <div class="p-row"><span>Shortage</span><span class="v" style="color:${p.shortage>0?'var(--red)':'var(--green)'}">${p.shortage.toLocaleString()} (${(p.pct*100).toFixed(0)}%)</span></div>
         <div class="p-foot">
           <span>${p.ageDays === 0 ? 'logged today' : p.ageDays + 'd since log'}</span>
           <span class="p-grade status-pill ${gradePillClass(p.grade)}">${p.grade}</span>
