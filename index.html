@@ -1046,7 +1046,7 @@ function render(){
   }
 
   el('content').innerHTML = buildLayout(scope);
-  renderHeroKPIs(scoped);
+  renderHeroKPIs(RAW); // hero strip is always org-wide, regardless of project focus below
   renderBrief(horizon);
   renderHealthGauge(scoped, scope);
   renderProjectGrid();
