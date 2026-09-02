@@ -60,13 +60,22 @@
   @keyframes spin{to{transform:rotate(360deg);}}
 
   /* ---------- Section nav ---------- */
-  .section-nav{display:flex;gap:6px;overflow-x:auto;padding:0 32px;border-bottom:1px solid var(--line);background:#fff;position:sticky;top:61px;z-index:40;}
-  .section-nav a{
-    font-family:var(--font-mono);font-size:11.5px;font-weight:600;color:var(--ink-dim);text-decoration:none;
-    padding:12px 14px;border-bottom:2px solid transparent;white-space:nowrap;letter-spacing:0.02em;
+  /* ---------- Project switcher nav ---------- */
+  .section-nav{display:flex;gap:4px;align-items:center;overflow-x:auto;padding:0 32px;border-bottom:1px solid var(--line);background:#fff;position:sticky;top:61px;z-index:40;}
+  .section-nav .nav-lbl{
+    font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-faint);
+    padding-right:14px;margin-right:6px;border-right:1px solid var(--line);white-space:nowrap;align-self:center;
   }
-  .section-nav a b{color:var(--red);margin-right:6px;}
-  .section-nav a:hover{color:var(--ink);border-bottom-color:var(--line);}
+  .nav-proj{
+    font-family:var(--font-mono);font-size:11.5px;font-weight:600;color:var(--ink-dim);background:none;border:none;
+    padding:13px 14px;border-bottom:2px solid transparent;white-space:nowrap;letter-spacing:0.02em;cursor:pointer;
+    display:flex;align-items:center;gap:7px;transition:color .12s;
+  }
+  .nav-proj:hover{color:var(--ink);border-bottom-color:var(--line);}
+  .nav-proj.active{color:var(--red);border-bottom-color:var(--red);font-weight:700;}
+  .nav-proj .nav-dot{width:7px;height:7px;border-radius:50%;background:var(--ink-faint);flex-shrink:0;}
+  .nav-proj .nav-score{font-size:10px;color:var(--ink-faint);font-weight:600;}
+  .nav-proj.active .nav-score{color:var(--red);}
 
   /* ---------- Hero ---------- */
   .hero{padding:44px 0 26px;position:relative;}
@@ -275,14 +284,9 @@
     </div>
   </div>
 
-  <nav class="section-nav" id="sectionNav">
-    <a href="#sec-health"><b>01</b>Health</a>
-    <a href="#sec-labour"><b>02</b>Labour Position</a>
-    <a href="#sec-category"><b>03</b>Categories</a>
-    <a href="#sec-predict"><b>04</b>Predictive</a>
-    <a href="#sec-projects"><b>05</b>Projects &amp; Towers</a>
-    <a href="#sec-contractors"><b>06</b>Contractors</a>
-    <a href="#sec-challenges"><b>07</b>Site Challenges</a>
+  <nav class="section-nav" id="projectNav">
+    <span class="nav-lbl">Project</span>
+    <span class="hint" style="padding:13px 4px;">loading…</span>
   </nav>
 
   <div class="wrap">
@@ -300,15 +304,13 @@
     </section>
 
     <div class="filter-bar">
-      <label for="projectFilter">Project focus</label>
-      <select id="projectFilter"><option value="__all__">All Projects (org-wide)</option></select>
-      <label for="horizonFilter" style="margin-left:8px;">Forecast horizon</label>
+      <label for="horizonFilter">Forecast horizon</label>
       <select id="horizonFilter">
         <option value="7">7 days</option>
         <option value="14" selected>14 days</option>
         <option value="30">30 days</option>
       </select>
-      <span class="scope-chip" id="scopeChip" onclick="clearScope()" title="Click to go back to org-wide view">✕ clear focus</span>
+      <span class="scope-chip" id="scopeChip" onclick="clearScope()" title="Click to go back to the org-wide view">✕ viewing one project — show all</span>
     </div>
 
     <div id="content">
@@ -335,6 +337,9 @@ function isUnskilledType(lt){
 let RAW = [];
 let PROJECTS = [];
 let charts = {};
+// Which project the whole dashboard is focused on. "__all__" = org-wide (default).
+// Driven by the project switcher in the sticky header.
+let CURRENT_SCOPE = "__all__";
 
 const el = (id) => document.getElementById(id);
 function setStatus(msg){ el('subline').textContent = msg; }
@@ -496,7 +501,6 @@ function processRows(rows, headers){
 
   RAW = cleaned;
   PROJECTS = [...new Set(cleaned.map(r => r.project))].sort();
-  populateProjectFilter();
   render();
 
   const latest = cleaned.reduce((a,b) => a.date > b.date ? a : b).date;
@@ -514,10 +518,27 @@ function processRows(rows, headers){
   }
 }
 
-function populateProjectFilter(){
-  const sel = el('projectFilter');
-  sel.innerHTML = '<option value="__all__">All Projects (org-wide)</option>' +
-    PROJECTS.map(p => `<option value="${p}">${p}</option>`).join('');
+/**
+ * Builds the sticky project switcher in the header. "All Projects" is the
+ * default; each project tab carries a health dot and score so the CEO can see
+ * which site is in trouble without selecting it first.
+ */
+function renderProjectNav(){
+  const nav = el('projectNav');
+  const summaries = {};
+  computeProjectSummary().forEach(p => summaries[p.project] = p);
+
+  const allActive = CURRENT_SCOPE === "__all__" ? ' active' : '';
+  let html = `<span class="nav-lbl">Project</span>`;
+  html += `<button class="nav-proj${allActive}" onclick="filterToProject('__all__')">All Projects</button>`;
+  html += PROJECTS.map(p => {
+    const s = summaries[p];
+    const active = CURRENT_SCOPE === p ? ' active' : '';
+    const dot = s ? `<span class="nav-dot" style="background:${healthColor(s.score)}"></span>` : '';
+    const score = s ? `<span class="nav-score">${s.score}</span>` : '';
+    return `<button class="nav-proj${active}" onclick="filterToProject('${p.replace(/'/g,"\\'")}')" title="${p} — health ${s ? s.score : 'n/a'}">${dot}${p}${score}</button>`;
+  }).join('');
+  nav.innerHTML = html;
 }
 
 /* =============================== ANALYTICS =============================== */
@@ -632,12 +653,15 @@ function computeCategorySummary(scoped){
   const byCat = {};
   todayRows.forEach(r => {
     const cat = r.laborType || "Unspecified";
-    if(!byCat[cat]) byCat[cat] = {required:0, available:0, rows:[], projects:new Set(), contractors:new Set()};
-    byCat[cat].required += r.required;
-    byCat[cat].available += r.available;
-    byCat[cat].rows.push(r);
-    byCat[cat].projects.add(r.project);
-    if(r.contractor) byCat[cat].contractors.add(r.contractor);
+    if(!byCat[cat]) byCat[cat] = {required:0, available:0, rows:[], projects:new Set(), contractors:new Set(), towers:new Set(), activities:new Set()};
+    const c = byCat[cat];
+    c.required += r.required;
+    c.available += r.available;
+    c.rows.push(r);
+    c.projects.add(r.project);
+    if(r.contractor) c.contractors.add(r.contractor);
+    if(r.tower) c.towers.add(r.tower);
+    if(r.activity) c.activities.add(r.activity);
   });
   return Object.entries(byCat).map(([cat, v]) => ({
     category: cat,
@@ -646,6 +670,9 @@ function computeCategorySummary(scoped){
     shortage: v.required - v.available,
     pct: v.required ? (v.required - v.available)/v.required : 0,
     projects: v.projects.size, contractors: v.contractors.size,
+    towerList: [...v.towers].sort().join(', ') || '—',
+    activityList: [...v.activities].join(', ') || '—',
+    contractorList: [...v.contractors].join(', ') || '—',
     bd: sumBreakdown(v.rows)
   })).sort((a,b) => b.shortage - a.shortage);
 }
@@ -931,28 +958,28 @@ function buildLayout(){
         <div class="chart-box"><canvas id="donutChart"></canvas></div>
       </div>
     </div>
-
-    <div class="section-head" id="sec-category"><div class="tag"><span class="no">03</span>Labour Categories</div><div class="synced">By Labor Type · M/C &amp; F/C auto-classified Unskilled</div></div>
-    <p class="section-sub">Which craft is actually missing — a shortage of Masons stalls RCC, a shortage of M/C stalls everything behind it. Prioritise recruitment and reallocation by category, not just headcount.</p>
-    <div class="chart-grid even">
-      <div class="panel">
-        <h2>Shortage by Labour Category</h2>
-        <p class="desc" id="catChartDesc">Today's snapshot, scoped to current filter.</p>
-        <div class="chart-box"><canvas id="catChart"></canvas></div>
-      </div>
+    <div class="chart-grid even" style="margin-top:16px;">
       <div class="panel">
         <h2>Skilled vs Unskilled — by Activity</h2>
         <p class="desc" id="skillChartDesc">Where each kind of gap sits.</p>
         <div class="chart-box"><canvas id="skillChart"></canvas></div>
       </div>
+      <div class="panel">
+        <h2>Shortage Share by Activity</h2>
+        <p class="desc">Which activity is holding up the most manpower gap today.</p>
+        <div class="chart-box"><canvas id="activityChart"></canvas></div>
+      </div>
     </div>
-    <div style="margin-top:16px;" id="catTable"></div>
 
-    <div class="section-head" id="sec-predict"><div class="tag"><span class="no">04</span>Predictive Outlook</div><div class="synced" id="predictSynced"></div></div>
+    <!-- Labour categories of the SELECTED project — renders only when a
+         project is picked in the header switcher; empty when org-wide. -->
+    <div id="projectCategorySection"></div>
+
+    <div class="section-head" id="sec-predict"><div class="tag"><span class="no">03</span>Predictive Outlook</div><div class="synced" id="predictSynced"></div></div>
     <p class="section-sub">Linear trend on the last 14 logged days. "Days to critical" is when a project's shortage is projected to cross 30% of requirement if nothing changes.</p>
     <div class="predict-grid" id="predictGrid"></div>
 
-    <div class="section-head" id="sec-projects"><div class="tag"><span class="no">05</span>Projects &amp; Towers</div><div class="synced">Click a project row to focus · click a tower row for activity detail</div></div>
+    <div class="section-head" id="sec-projects"><div class="tag"><span class="no">04</span>Projects &amp; Towers</div><div class="synced">Click a project row to focus · click a tower row for activity detail</div></div>
     <div class="highlight-box">
       <div class="highlight-title">⚠ Call these projects first</div>
       <div id="topAttentionTable"></div>
@@ -960,7 +987,7 @@ function buildLayout(){
     <div id="projectSummaryTable"></div>
     <div id="towerSection"></div>
 
-    <div class="section-head" id="sec-contractors"><div class="tag"><span class="no">06</span>Contractor Performance</div><div class="synced">Watchlist today · ranking over 30 days, org-wide</div></div>
+    <div class="section-head" id="sec-contractors"><div class="tag"><span class="no">05</span>Contractor Performance</div><div class="synced">Watchlist today · ranking over 30 days, org-wide</div></div>
     <div style="display:flex; gap:8px; margin-bottom:14px;">
       <button class="tab-btn active" id="contractorTabWatchBtn" onclick="showContractorTab('watch')">⚠ Needs Attention</button>
       <button class="tab-btn" id="contractorTabTopBtn" onclick="showContractorTab('top')">🏆 Top Performers</button>
@@ -977,7 +1004,7 @@ function buildLayout(){
       <div id="contractorTopTable"></div>
     </div>
 
-    <div class="section-head" id="sec-challenges"><div class="tag"><span class="no">07</span>Site Challenges</div><div class="synced">Auto-detected from the log</div></div>
+    <div class="section-head" id="sec-challenges"><div class="tag"><span class="no">06</span>Site Challenges</div><div class="synced">Auto-detected from the log</div></div>
     <p class="section-sub">Problems that don't show in a single day's snapshot: sites stuck short for days, sites gone quiet, and activities that are chronically under-manned.</p>
     <div class="challenge-grid" id="challengeGrid"></div>
   `;
@@ -987,13 +1014,14 @@ function buildLayout(){
 function destroyChart(id){ if(charts[id]){ charts[id].destroy(); delete charts[id]; } }
 
 function render(){
-  const scope = el('projectFilter').value;
+  const scope = CURRENT_SCOPE;
   const horizon = parseInt(el('horizonFilter').value, 10);
   const scoped = scope === "__all__" ? RAW : RAW.filter(r => r.project === scope);
   const chip = el('scopeChip');
   if(scope === "__all__"){ chip.classList.remove('on'); }
-  else { chip.classList.add('on'); chip.textContent = "✕ focused: " + scope; }
+  else { chip.classList.add('on'); chip.textContent = "✕ viewing " + scope + " — show all projects"; }
 
+  renderProjectNav();
   el('content').innerHTML = buildLayout();
   renderHeroKPIs(scoped);
   renderBrief(horizon);
@@ -1003,9 +1031,9 @@ function render(){
   renderStatCards(scoped);
   renderTrendChart(scoped, horizon);
   renderDonut(scope, scoped);
-  renderCategoryChart(scoped);
   renderSkillChart(scoped);
-  renderCategoryTable(scoped);
+  renderActivityChart(scoped);
+  renderProjectCategories(scope, scoped);
   renderPredictions(horizon, scope);
   renderTopAttentionTable();
   renderProjectSummaryTable();
@@ -1015,12 +1043,12 @@ function render(){
 }
 
 function filterToProject(project){
-  el('projectFilter').value = project;
+  CURRENT_SCOPE = project;
   render();
   window.scrollTo({top: 0, behavior: 'smooth'});
 }
 function clearScope(){
-  el('projectFilter').value = "__all__";
+  CURRENT_SCOPE = "__all__";
   render();
 }
 
@@ -1300,20 +1328,20 @@ function renderDonut(scope, scoped){
   });
 }
 
-function renderCategoryChart(scoped){
-  destroyChart('catChart');
-  const cats = computeCategorySummary(scoped).filter(c => c.category !== "Unspecified");
-  const descEl = el('catChartDesc');
-  if(!cats.length){
-    el('catChart').parentElement.innerHTML = '<p class="empty">No Labor Type data yet — new PM Portal submissions carry this. Once PMs log labour categories, this fills in automatically.</p>';
+/** Available vs shortage per Activity — the org-wide companion to the
+ *  project-scoped category view further down. */
+function renderActivityChart(scoped){
+  destroyChart('activityChart');
+  const acts = computeActivitySummary(scoped);
+  if(!acts.length){
+    el('activityChart').parentElement.innerHTML = '<p class="empty">No Activity data logged for this scope yet.</p>';
     return;
   }
-  const entries = cats.slice(0, 10);
-  if(descEl) descEl.textContent = `Today's snapshot · ${cats.length} categor${cats.length===1?'y':'ies'} logged.`;
-  charts.catChart = new Chart(el('catChart'), {
+  const entries = acts.slice(0, 10);
+  charts.activityChart = new Chart(el('activityChart'), {
     type:'bar',
     data:{
-      labels: entries.map(e => e.category + (e.isUnskilled ? ' (Unsk)' : '')),
+      labels: entries.map(e => e.activity),
       datasets:[
         {label:'Available', data: entries.map(e=>e.available), backgroundColor:'#1f9d55', borderRadius:4},
         {label:'Shortage', data: entries.map(e=>Math.max(0,e.shortage)), backgroundColor:'#e0333f', borderRadius:4},
@@ -1361,30 +1389,141 @@ function renderSkillChart(scoped){
   });
 }
 
-function renderCategoryTable(scoped){
-  const cats = computeCategorySummary(scoped);
-  if(!cats.length || (cats.length === 1 && cats[0].category === "Unspecified")){
-    el('catTable').innerHTML = '';
+/**
+ * Labour categories OF THE SELECTED PROJECT. Renders nothing org-wide —
+ * picking a project in the header switcher is what opens this up: every
+ * Labor Type logged on that site today, with its towers, contractors, and a
+ * tower × category matrix showing exactly where each craft is short.
+ */
+function renderProjectCategories(scope, scoped){
+  const host = el('projectCategorySection');
+  if(!host) return;
+  destroyChart('projCatChart');
+
+  if(scope === "__all__"){
+    host.innerHTML = '';
     return;
   }
+
+  const cats = computeCategorySummary(scoped);
+  const real = cats.filter(c => c.category !== "Unspecified");
+
+  const head = `
+    <div class="section-head" id="sec-category"><div class="tag"><span class="no">02b</span>Labour Categories — ${scope}</div><div class="synced">By Labor Type · M/C &amp; F/C auto-classified Unskilled</div></div>
+    <p class="section-sub">Every category logged on this site today. A shortage of Masons stalls RCC; a shortage of M/C stalls everything behind it — so allocate by craft, not just headcount.</p>`;
+
+  if(!cats.length){
+    host.innerHTML = head + '<div class="empty" style="border:1px dashed var(--line);border-radius:10px;">No labour logged for this project today.</div>';
+    return;
+  }
+  if(!real.length){
+    host.innerHTML = head + '<div class="empty" style="border:1px dashed var(--line);border-radius:10px;">No Labor Type recorded on this project yet — new PM Portal submissions carry this, so it fills in as PMs log categories.</div>';
+    return;
+  }
+
+  // tower × category matrix for this project (today)
+  const {latestDate} = latestRowsFor(scoped);
+  const todayKey = dayKey(latestDate);
+  const todayRows = scoped.filter(r => r.dateKey === todayKey);
+  const towers = [...new Set(todayRows.filter(r => r.tower).map(r => r.tower))].sort();
+  const catNames = real.map(c => c.category);
+  const matrix = {};
+  todayRows.forEach(r => {
+    const cat = r.laborType || "Unspecified";
+    if(!r.tower || cat === "Unspecified") return;
+    const k = r.tower + "||" + cat;
+    if(!matrix[k]) matrix[k] = {required:0, available:0};
+    matrix[k].required += r.required;
+    matrix[k].available += r.available;
+  });
+
   const maxShortage = Math.max(1, ...cats.map(c => Math.abs(c.shortage)));
-  el('catTable').innerHTML = `
-    <div class="table-wrap"><table class="data-table">
-      <thead><tr><th>Category</th><th class="num">Required</th><th class="num">Available</th><th class="num">Shortage</th><th class="num">Shortage %</th><th>Status</th><th class="num">Projects</th><th class="num">Contractors</th></tr></thead>
+  const matrixHtml = towers.length ? `
+    <div class="panel" style="margin-top:16px;">
+      <h2>Tower × Category — where each craft is short</h2>
+      <p class="desc">Shortage per tower for every category on ${scope}, today. Green means that tower is covered for that craft.</p>
+      <div class="table-wrap"><table class="data-table">
+        <thead><tr><th>Tower</th>${catNames.map(c => `<th class="num">${c}</th>`).join('')}<th class="num">Total short</th></tr></thead>
+        <tbody>
+          ${towers.map(t => {
+            let rowTotal = 0;
+            const cells = catNames.map(c => {
+              const m = matrix[t + "||" + c];
+              if(!m) return `<td class="num" style="color:var(--ink-faint);">—</td>`;
+              const sh = m.required - m.available;
+              rowTotal += sh;
+              const col = sh > 0 ? 'var(--red)' : 'var(--green)';
+              return `<td class="num" style="color:${col};font-weight:${sh>0?'700':'500'};" title="${c} — required ${m.required}, available ${m.available}">${sh > 0 ? sh : (sh === 0 ? '0' : sh)}</td>`;
+            }).join('');
+            return `<tr><td><b>Tower ${t}</b></td>${cells}<td class="num" style="font-weight:700;color:${rowTotal>0?'var(--red)':'var(--green)'}">${rowTotal}</td></tr>`;
+          }).join('')}
+        </tbody>
+      </table></div>
+    </div>` : '';
+
+  host.innerHTML = head + `
+    <div class="chart-grid even">
+      <div class="panel">
+        <h2>Available vs Shortage by Category</h2>
+        <p class="desc">${real.length} categor${real.length===1?'y':'ies'} logged on ${scope} today.</p>
+        <div class="chart-box"><canvas id="projCatChart"></canvas></div>
+      </div>
+      <div class="panel">
+        <h2>Category Detail</h2>
+        <p class="desc">Where each craft sits, and who is supplying it.</p>
+        <div class="table-wrap scrollable" style="max-height:280px;"><table class="data-table">
+          <thead><tr><th>Category</th><th class="num">Req</th><th class="num">Avail</th><th class="num">Short</th><th>Status</th></tr></thead>
+          <tbody>
+            ${cats.map(c => `
+              <tr>
+                <td><b>${c.category}</b>${c.isUnskilled ? '<span class="cat-tag">Unskilled</span>' : ''}${c.category==="Unspecified" ? '<span class="hint" style="margin-left:6px;">(no Labor Type)</span>' : ''}</td>
+                <td class="num">${c.required.toLocaleString()}</td>
+                <td class="num">${c.available.toLocaleString()}</td>
+                ${dataBarCell(c.shortage, maxShortage, c.shortage>0?'#e0333f':'#1f9d55')}
+                <td>${statusPill(c.pct)}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+    <div class="table-wrap" style="margin-top:16px;"><table class="data-table">
+      <thead><tr><th>Category</th><th class="num">Required</th><th class="num">Req (Sk/Unsk)</th><th class="num">Available</th><th class="num">Shortage %</th><th>Towers</th><th>Activities</th><th>Contractors</th></tr></thead>
       <tbody>
         ${cats.map(c => `
           <tr>
-            <td><b>${c.category}</b>${c.isUnskilled ? '<span class="cat-tag">Unskilled</span>' : ''}${c.category==="Unspecified" ? '<span class="hint" style="margin-left:6px;">(rows without a Labor Type)</span>' : ''}</td>
+            <td><b>${c.category}</b>${c.isUnskilled ? '<span class="cat-tag">Unskilled</span>' : ''}</td>
             <td class="num">${c.required.toLocaleString()}</td>
+            <td class="num">${skUnskCompact(c.bd.reqSk, c.bd.reqUnsk, c.bd.anyBreakdown)}</td>
             <td class="num">${c.available.toLocaleString()}</td>
-            ${dataBarCell(c.shortage, maxShortage, c.shortage>0?'#e0333f':'#1f9d55')}
-            <td class="num">${(c.pct*100).toFixed(1)}%</td>
-            <td>${statusPill(c.pct)}</td>
-            <td class="num">${c.projects}</td>
-            <td class="num">${c.contractors}</td>
+            <td class="num" style="color:${c.pct>0?'var(--red)':'var(--green)'};font-weight:600;">${(c.pct*100).toFixed(1)}%</td>
+            <td>${c.towerList}</td>
+            <td>${c.activityList}</td>
+            <td>${c.contractorList}</td>
           </tr>`).join('')}
       </tbody>
-    </table></div>`;
+    </table></div>
+    ${matrixHtml}`;
+
+  const entries = real.slice(0, 10);
+  charts.projCatChart = new Chart(el('projCatChart'), {
+    type:'bar',
+    data:{
+      labels: entries.map(e => e.category + (e.isUnskilled ? ' (Unsk)' : '')),
+      datasets:[
+        {label:'Available', data: entries.map(e=>e.available), backgroundColor:'#1f9d55', borderRadius:4},
+        {label:'Shortage', data: entries.map(e=>Math.max(0,e.shortage)), backgroundColor:'#e0333f', borderRadius:4},
+      ]
+    },
+    options:{
+      indexAxis:'y',
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom', labels:{color:'#6b7280', boxWidth:10, font:{size:11}}}, tooltip:{mode:'index'}},
+      scales:{
+        x:{stacked:true, ticks:{color:'#9aa1ab'}, grid:{color:'#f0f0f0'}, beginAtZero:true},
+        y:{stacked:true, ticks:{color:'#6b7280', font:{size:11}}, grid:{display:false}}
+      }
+    }
+  });
 }
 
 function renderPredictions(horizon, scope){
@@ -1680,7 +1819,6 @@ function renderChallenges(){
 
 /* =============================== BOOT =============================== */
 el('refreshBtn').addEventListener('click', loadData);
-el('projectFilter').addEventListener('change', render);
 el('horizonFilter').addEventListener('change', render);
 
 loadData();
