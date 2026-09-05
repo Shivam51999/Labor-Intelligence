@@ -785,9 +785,10 @@ function computePredictions(horizon){
  *  2. Silent sites — projects that haven't logged for 2+ days.
  *  3. Chronic activity gaps — activities with worst avg shortage% over the last 14 days (min 3 logged days).
  */
-function computeChallenges(){
+function computeChallenges(scope){
+  const projects = (!scope || scope === "__all__") ? PROJECTS : [scope];
   const streaks = [];
-  PROJECTS.forEach(p => {
+  projects.forEach(p => {
     const rows = RAW.filter(r => r.project === p);
     const daily = groupDaily(rows);
     let n = 0;
@@ -803,7 +804,7 @@ function computeChallenges(){
   streaks.sort((a,b) => b.days - a.days);
 
   const globalLatest = RAW.reduce((a,b) => a.date > b.date ? a : b).date;
-  const silent = PROJECTS.map(p => {
+  const silent = projects.map(p => {
     const rows = RAW.filter(r => r.project === p);
     const latest = rows.reduce((a,b) => a.date > b.date ? a : b).date;
     const gap = Math.round((globalLatest - latest)/86400000);
@@ -812,7 +813,7 @@ function computeChallenges(){
 
   const cutoff = new Date(globalLatest.getTime() - 14*86400000);
   const byAct = {};
-  RAW.filter(r => r.activity && r.date >= cutoff).forEach(r => {
+  RAW.filter(r => r.activity && r.date >= cutoff && (!scope || scope === "__all__" || r.project === scope)).forEach(r => {
     const key = r.project + "|" + r.activity;
     if(!byAct[key]) byAct[key] = {project:r.project, activity:r.activity, days:{}};
     if(!byAct[key].days[r.dateKey]) byAct[key].days[r.dateKey] = {required:0, available:0};
@@ -829,10 +830,12 @@ function computeChallenges(){
   return {streaks, silent, chronic};
 }
 
-/** Contractor 30-day composite performance (org-wide, ignores focus filter). */
-function computeContractorPerformance(lookbackDays){
+/** Contractor 30-day composite performance. Pass a project name to scope it
+ *  to that project only; omit or pass "__all__" for org-wide (the original
+ *  default behaviour). */
+function computeContractorPerformance(lookbackDays, scope){
   lookbackDays = lookbackDays || 30;
-  const relevantRows = RAW.filter(r => r.contractor);
+  const relevantRows = RAW.filter(r => r.contractor && (!scope || scope === "__all__" || r.project === scope));
   if(!relevantRows.length) return [];
   const {latestDate} = latestRowsFor(relevantRows);
   const cutoff = new Date(latestDate.getTime() - lookbackDays*86400000);
@@ -927,17 +930,20 @@ function sparklineSVG(values, color){
 
 /* =============================== LAYOUT =============================== */
 function buildLayout(){
+  const orgWideOnly = CURRENT_SCOPE === "__all__" ? '' : 'hidden';
   return `
-    <div class="section-head" id="sec-health"><div class="tag"><span class="no">01</span>Portfolio Health</div><div class="synced">Click any project card to focus the whole dashboard</div></div>
-    <p class="section-sub">One score per project — fulfilment, momentum, consistency, and reporting discipline rolled together. Red cards are where your morning starts.</p>
-    <div class="health-layout">
-      <div class="health-card" id="healthCard"></div>
-      <div class="proj-grid" id="projGrid"></div>
-    </div>
+    <div class="${orgWideOnly}">
+      <div class="section-head" id="sec-health"><div class="tag"><span class="no">01</span>Portfolio Health</div><div class="synced">Click any project card to focus the whole dashboard</div></div>
+      <p class="section-sub">One score per project — fulfilment, momentum, consistency, and reporting discipline rolled together. Red cards are where your morning starts.</p>
+      <div class="health-layout">
+        <div class="health-card" id="healthCard"></div>
+        <div class="proj-grid" id="projGrid"></div>
+      </div>
 
-    <div class="section-head"><div class="tag"><span class="no">01b</span>14-Day Fulfilment Heatmap</div><div class="synced">Project × day · hover any cell</div></div>
-    <p class="section-sub">Spot patterns text can't show — a project going from green to amber to red is drifting; scattered grey means sites aren't logging daily.</p>
-    <div class="heatmap-wrap" id="heatmapWrap"></div>
+      <div class="section-head"><div class="tag"><span class="no">01b</span>14-Day Fulfilment Heatmap</div><div class="synced">Project × day · hover any cell</div></div>
+      <p class="section-sub">Spot patterns text can't show — a project going from green to amber to red is drifting; scattered grey means sites aren't logging daily.</p>
+      <div class="heatmap-wrap" id="heatmapWrap"></div>
+    </div>
 
     <div class="section-head" id="sec-labour"><div class="tag"><span class="no">02</span>Labour Position — Today</div><div class="synced" id="labourSynced"></div></div>
     <div class="stat-grid" id="statGrid"></div>
@@ -979,15 +985,17 @@ function buildLayout(){
     <p class="section-sub">Linear trend on the last 14 logged days. "Days to critical" is when a project's shortage is projected to cross 30% of requirement if nothing changes.</p>
     <div class="predict-grid" id="predictGrid"></div>
 
-    <div class="section-head" id="sec-projects"><div class="tag"><span class="no">04</span>Projects &amp; Towers</div><div class="synced">Click a project row to focus · click a tower row for activity detail</div></div>
-    <div class="highlight-box">
-      <div class="highlight-title">⚠ Call these projects first</div>
-      <div id="topAttentionTable"></div>
+    <div class="${orgWideOnly}">
+      <div class="section-head" id="sec-projects"><div class="tag"><span class="no">04</span>Projects &amp; Towers</div><div class="synced">Click a project row to focus · click a tower row for activity detail</div></div>
+      <div class="highlight-box">
+        <div class="highlight-title">⚠ Call these projects first</div>
+        <div id="topAttentionTable"></div>
+      </div>
+      <div id="projectSummaryTable"></div>
     </div>
-    <div id="projectSummaryTable"></div>
     <div id="towerSection"></div>
 
-    <div class="section-head" id="sec-contractors"><div class="tag"><span class="no">05</span>Contractor Performance</div><div class="synced">Watchlist today · ranking over 30 days, org-wide</div></div>
+    <div class="section-head" id="sec-contractors"><div class="tag"><span class="no">05</span>Contractor Performance</div><div class="synced">Watchlist today · ranking over 30 days${CURRENT_SCOPE === "__all__" ? ", org-wide" : ", " + CURRENT_SCOPE}</div></div>
     <div style="display:flex; gap:8px; margin-bottom:14px;">
       <button class="tab-btn active" id="contractorTabWatchBtn" onclick="showContractorTab('watch')">⚠ Needs Attention</button>
       <button class="tab-btn" id="contractorTabTopBtn" onclick="showContractorTab('top')">🏆 Top Performers</button>
@@ -1004,7 +1012,7 @@ function buildLayout(){
       <div id="contractorTopTable"></div>
     </div>
 
-    <div class="section-head" id="sec-challenges"><div class="tag"><span class="no">06</span>Site Challenges</div><div class="synced">Auto-detected from the log</div></div>
+    <div class="section-head" id="sec-challenges"><div class="tag"><span class="no">06</span>Site Challenges</div><div class="synced">Auto-detected from the log${CURRENT_SCOPE === "__all__" ? '' : " — " + CURRENT_SCOPE}</div></div>
     <p class="section-sub">Problems that don't show in a single day's snapshot: sites stuck short for days, sites gone quiet, and activities that are chronically under-manned.</p>
     <div class="challenge-grid" id="challengeGrid"></div>
   `;
@@ -1024,10 +1032,16 @@ function render(){
   renderProjectNav();
   el('content').innerHTML = buildLayout();
   renderHeroKPIs(scoped);
-  renderBrief(horizon);
-  renderHealthGauge(scoped, scope);
-  renderProjectGrid();
-  renderHeatmap();
+  if(scope === "__all__"){
+    renderBrief(horizon);
+    renderHealthGauge(scoped, scope);
+    renderProjectGrid();
+    renderHeatmap();
+    renderTopAttentionTable();
+    renderProjectSummaryTable();
+  } else {
+    el('briefCard').style.display = 'none';
+  }
   renderStatCards(scoped);
   renderTrendChart(scoped, horizon);
   renderDonut(scope, scoped);
@@ -1035,11 +1049,9 @@ function render(){
   renderActivityChart(scoped);
   renderProjectCategories(scope, scoped);
   renderPredictions(horizon, scope);
-  renderTopAttentionTable();
-  renderProjectSummaryTable();
   renderTowerSection(scope, scoped);
   renderContractorWatchlist(scoped);
-  renderChallenges();
+  renderChallenges(scope);
 }
 
 function filterToProject(project){
@@ -1765,7 +1777,7 @@ function renderContractorWatchlist(scoped){
 function renderContractorTop(){
   const container = el('contractorTopTable');
   if(!container) return;
-  const rows = computeContractorPerformance(30);
+  const rows = computeContractorPerformance(30, CURRENT_SCOPE);
   if(!rows.length){
     container.innerHTML = '<div class="empty">Not enough contractor data logged yet to rank performance.</div>';
     return;
@@ -1796,8 +1808,8 @@ function renderContractorTop(){
     </table></div>`;
 }
 
-function renderChallenges(){
-  const {streaks, silent, chronic} = computeChallenges();
+function renderChallenges(scope){
+  const {streaks, silent, chronic} = computeChallenges(scope);
   const card = (title, icon, items, emptyMsg) => `
     <div class="challenge-card">
       <div class="ch-head">${icon} ${title}<span class="ch-count ${items.length ? '' : 'zero'}">${items.length}</span></div>
